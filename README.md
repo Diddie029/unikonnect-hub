@@ -1,73 +1,98 @@
-# Welcome to your Lovable project
+# 🎓 UniConnect Hub
 
-## Project info
+UniConnect Hub is a **real-time university social and study platform** designed to connect students through academic discussions, daily status updates, and media sharing — all managed with **live admin moderation**.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+Here is the live link: https://unikonnect-hub.lovable.app
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## 🚀 Features
 
-**Use Lovable**
+### 👥 User Roles
+#### 👨‍🎓 Students
+- Create an account & log in
+- Update profile (University, Course, Year, Profile Picture)
+- Post daily statuses in real time
+- Upload photos & videos
+- Like and comment on posts
+- Join academic discussions
+- Receive real-time notifications
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+#### 🛡️ Admin
+- Pre-seeded demo account:
+  - **Username:** `admin`
+  - **Password:** `admin123`
+- View all users
+- Suspend & reinstate users **in real time**
+- Delete posts, comments, and media
+- Moderate discussions
+- View activity analytics
+- Receive user reports
 
-Changes made via Lovable will be committed automatically to this repo.
+---
 
-**Use your preferred IDE**
+## 🔐 Authentication & Security
+- JWT-based authentication
+- Password hashing with **bcrypt**
+- Role-based access control (Admin / Student)
+- Real-time suspension enforcement
+- Input validation & sanitization
+- Secure WebSocket authentication
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+---
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 📢 Real-Time Capabilities
+- Live discussion rooms
+- Real-time status feed
+- Instant admin actions (suspend/unsuspend)
+- Live notifications
+- Typing indicators
+- No page refresh required
 
-Follow these steps:
+---
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 📸 Media Support
+- Image uploads (JPG, PNG)
+- Video uploads (MP4)
+- Media previews before posting
+- Secure cloud storage (Cloudinary / AWS S3)
+- File size & type validation
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+---
 
-# Step 3: Install the necessary dependencies.
-npm i
+## 🎨 UI / UX
+- Modern student-friendly interface
+- Dark & Light mode
+- Mobile-first responsive design
+- Real-time updates
+- Admin badges & suspension indicators
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+---
 
-**Edit a file directly in GitHub**
+## 🧠 Tech Stack
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
+### Frontend
 - React
-- shadcn-ui
 - Tailwind CSS
+- Socket.IO Client
 
-## How can I deploy this project?
+### Backend
+- Node.js
+- Express
+- Socket.IO
+- JWT Authentication
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Database
+- MongoDB or PostgreSQL
 
-## Can I connect a custom domain to my Lovable project?
+### Storage
+- Cloudinary or AWS S3
 
-Yes, you can!
+### Deployment
+- Docker
+- Vercel / Render
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+---
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## 🗂️ Project Structure
+
