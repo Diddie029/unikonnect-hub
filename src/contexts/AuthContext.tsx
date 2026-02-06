@@ -31,6 +31,8 @@ interface AuthContextType {
   users: User[];
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isAIEnabled: boolean;
+  toggleAI: () => void;
   login: (username: string, password: string) => { success: boolean; error?: string };
   signup: (data: SignupData) => { success: boolean; error?: string };
   logout: () => void;
@@ -123,6 +125,11 @@ const INITIAL_USERS: (User & { password: string })[] = [
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [users, setUsers] = useState(INITIAL_USERS);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAIEnabled, setIsAIEnabled] = useState(true);
+
+  const toggleAI = useCallback(() => {
+    setIsAIEnabled(prev => !prev);
+  }, []);
 
   const login = useCallback((username: string, password: string) => {
     const user = users.find(u => u.username === username && u.password === password);
@@ -189,6 +196,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       users: users.map(({ password: _, ...u }) => u) as User[],
       isAuthenticated: !!currentUser,
       isAdmin: currentUser?.role === 'admin',
+      isAIEnabled,
+      toggleAI,
       login,
       signup,
       logout,
