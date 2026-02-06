@@ -4,6 +4,8 @@ import { getInitials } from '@/data/mockData';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   Users,
   FileText,
@@ -12,6 +14,7 @@ import {
   Ban,
   CheckCircle2,
   TrendingUp,
+  Bot,
 } from 'lucide-react';
 import {
   BarChart,
@@ -41,7 +44,7 @@ const ADMIN_LOGS = [
 ];
 
 export default function AdminDashboard() {
-  const { users, isAdmin, suspendUser, unsuspendUser } = useAuth();
+  const { users, isAdmin, isAIEnabled, toggleAI, suspendUser, unsuspendUser } = useAuth();
 
   if (!isAdmin) {
     return (
@@ -75,6 +78,42 @@ export default function AdminDashboard() {
           Monitor and manage the UniConnect platform
         </p>
       </div>
+
+      {/* AI Control */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="rounded-xl bg-card shadow-card p-5"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <Bot className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold font-display text-card-foreground">
+                UniBot AI Assistant
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {isAIEnabled
+                  ? 'AI is active for all students and admins'
+                  : 'AI is disabled for students (admin-only mode)'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Label htmlFor="ai-toggle" className="text-xs text-muted-foreground">
+              {isAIEnabled ? 'Enabled' : 'Disabled'}
+            </Label>
+            <Switch
+              id="ai-toggle"
+              checked={isAIEnabled}
+              onCheckedChange={toggleAI}
+            />
+          </div>
+        </div>
+      </motion.div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

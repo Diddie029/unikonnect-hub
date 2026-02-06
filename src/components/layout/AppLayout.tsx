@@ -17,6 +17,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { getInitials } from '@/data/mockData';
+import AIChatBot from '@/components/ai/AIChatBot';
 
 const NAV_ITEMS = [
   { path: '/feed', label: 'Feed', icon: Home },
@@ -211,6 +212,9 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* AI Chatbot */}
+      <AIChatBot />
     </div>
   );
 }
