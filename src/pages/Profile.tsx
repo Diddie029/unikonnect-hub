@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInitials } from '@/data/mockData';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,7 @@ import {
   Edit3,
   Save,
   X,
+  Camera,
 } from 'lucide-react';
 
 export default function Profile() {
@@ -26,6 +27,8 @@ export default function Profile() {
     university: currentUser?.university || '',
     course: currentUser?.course || '',
   });
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!currentUser) return null;
 
@@ -33,9 +36,30 @@ export default function Profile() {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      return; // Max 5MB
+    }
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      return; // Only images
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setAvatarPreview(objectUrl);
+  };
+
   const handleSave = () => {
-    updateProfile(form);
+    const updates: Record<string, string> = { ...form };
+    if (avatarPreview) {
+      updates.profilePicture = avatarPreview;
+    }
+    updateProfile(updates);
     setEditing(false);
+    setAvatarPreview(null);
   };
 
   const handleCancel = () => {
@@ -45,8 +69,14 @@ export default function Profile() {
       university: currentUser.university || '',
       course: currentUser.course || '',
     });
+    if (avatarPreview) {
+      URL.revokeObjectURL(avatarPreview);
+      setAvatarPreview(null);
+    }
     setEditing(false);
   };
+
+  const displayAvatar = avatarPreview || currentUser.profilePicture;
 
   return (
     <div className="max-w-2xl mx-auto p-4 md:p-6 space-y-6">
@@ -66,11 +96,34 @@ export default function Profile() {
 
         {/* Avatar + Info */}
         <div className="relative px-6 pb-6">
-          <Avatar className="h-20 w-20 -mt-10 border-4 border-card">
-            <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold font-display">
-              {getInitials(currentUser.name)}
-            </AvatarFallback>
-          </Avatar>
+          <div className="relative -mt-10 w-fit">
+            <Avatar className="h-20 w-20 border-4 border-card">
+              {displayAvatar ? (
+                <AvatarImage src={displayAvatar} alt={currentUser.name} />
+              ) : null}
+              <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold font-display">
+                {getInitials(currentUser.name)}
+              </AvatarFallback>
+            </Avatar>
+            {editing && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center border-2 border-card hover:bg-primary/90 transition-colors"
+                  title="Change profile picture"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                </button>
+              </>
+            )}
+          </div>
 
           <div className="flex items-start justify-between mt-3">
             <div>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home,
@@ -13,8 +14,10 @@ import {
   Bell,
   GraduationCap,
   AlertTriangle,
+  Sun,
+  Moon,
 } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { getInitials } from '@/data/mockData';
 import AIChatBot from '@/components/ai/AIChatBot';
@@ -29,6 +32,7 @@ const ADMIN_NAV = { path: '/admin', label: 'Admin Panel', icon: Shield };
 
 export default function AppLayout() {
   const { currentUser, isAdmin, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -117,6 +121,9 @@ export default function AppLayout() {
         <div className="border-t border-sidebar-border p-3">
           <div className="flex items-center gap-3 rounded-lg px-3 py-2">
             <Avatar className="h-8 w-8 border border-sidebar-border">
+              {currentUser?.profilePicture ? (
+                <AvatarImage src={currentUser.profilePicture} alt={currentUser.name} />
+              ) : null}
               <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-xs font-semibold">
                 {currentUser ? getInitials(currentUser.name) : '?'}
               </AvatarFallback>
@@ -156,11 +163,28 @@ export default function AppLayout() {
             </h2>
           </div>
           <div className="flex items-center gap-2">
+            {/* Theme toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="text-muted-foreground hover:text-foreground"
+              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+            >
+              {theme === 'light' ? (
+                <Moon className="h-4.5 w-4.5" />
+              ) : (
+                <Sun className="h-4.5 w-4.5" />
+              )}
+            </Button>
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-4.5 w-4.5 text-muted-foreground" />
               <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent animate-pulse-dot" />
             </Button>
             <Avatar className="h-8 w-8 md:hidden">
+              {currentUser?.profilePicture ? (
+                <AvatarImage src={currentUser.profilePicture} alt={currentUser?.name} />
+              ) : null}
               <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                 {currentUser ? getInitials(currentUser.name) : '?'}
               </AvatarFallback>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Trash2 } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Trash2, Hash } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -33,6 +33,20 @@ export default function PostCard({ post, onLike, onComment, onDelete }: PostCard
     setCommentText('');
   };
 
+  // Extract hashtags from content for highlighting
+  const renderContent = (text: string) => {
+    const parts = text.split(/(#\w+)/g);
+    return parts.map((part, i) =>
+      part.startsWith('#') ? (
+        <span key={i} className="text-primary font-medium cursor-pointer hover:underline">
+          {part}
+        </span>
+      ) : (
+        <span key={i}>{part}</span>
+      )
+    );
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -43,6 +57,9 @@ export default function PostCard({ post, onLike, onComment, onDelete }: PostCard
       <div className="flex items-start justify-between p-4 pb-0">
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10 border-2 border-border">
+            {post.userAvatar ? (
+              <AvatarImage src={post.userAvatar} alt={post.userName} />
+            ) : null}
             <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
               {getInitials(post.userName)}
             </AvatarFallback>
@@ -83,18 +100,38 @@ export default function PostCard({ post, onLike, onComment, onDelete }: PostCard
 
       {/* Content */}
       <div className="px-4 py-3">
-        <p className="text-sm leading-relaxed text-card-foreground whitespace-pre-wrap">{post.content}</p>
+        <p className="text-sm leading-relaxed text-card-foreground whitespace-pre-wrap">
+          {renderContent(post.content)}
+        </p>
       </div>
 
       {/* Image */}
       {post.image && (
         <div className="px-4 pb-3">
-          <img
-            src={post.image}
-            alt="Post attachment"
-            className="w-full rounded-lg object-cover max-h-80"
-            loading="lazy"
-          />
+          {post.image.startsWith('blob:') || post.image.startsWith('http') ? (
+            post.image.includes('.mp4') || post.image.includes('.webm') ? (
+              <video
+                src={post.image}
+                className="w-full rounded-lg max-h-80"
+                controls
+                muted
+              />
+            ) : (
+              <img
+                src={post.image}
+                alt="Post attachment"
+                className="w-full rounded-lg object-cover max-h-80"
+                loading="lazy"
+              />
+            )
+          ) : (
+            <img
+              src={post.image}
+              alt="Post attachment"
+              className="w-full rounded-lg object-cover max-h-80"
+              loading="lazy"
+            />
+          )}
         </div>
       )}
 
@@ -158,6 +195,9 @@ export default function PostCard({ post, onLike, onComment, onDelete }: PostCard
           {/* Add comment */}
           <div className="flex items-center gap-2 px-4 py-3 border-t border-border/50">
             <Avatar className="h-7 w-7">
+              {currentUser?.profilePicture ? (
+                <AvatarImage src={currentUser.profilePicture} alt={currentUser.name} />
+              ) : null}
               <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
                 {currentUser ? getInitials(currentUser.name) : '?'}
               </AvatarFallback>
