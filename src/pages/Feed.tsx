@@ -26,6 +26,7 @@ export default function Feed() {
       userName: currentUser.name,
       userUsername: currentUser.username,
       userUniversity: currentUser.university,
+      userAvatar: currentUser.profilePicture,
       content,
       image,
       likes: [],

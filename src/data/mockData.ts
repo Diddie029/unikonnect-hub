@@ -4,6 +4,7 @@ export interface Post {
   userName: string;
   userUsername: string;
   userUniversity?: string;
+  userAvatar?: string;
   content: string;
   image?: string;
   likes: string[];
