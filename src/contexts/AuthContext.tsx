@@ -1,209 +1,229 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
-export interface User {
+export interface Profile {
   id: string;
+  user_id: string;
   username: string;
   name: string;
-  email: string;
-  role: 'admin' | 'student';
-  university?: string;
-  course?: string;
-  yearOfStudy?: number;
-  profilePicture?: string;
-  bio?: string;
-  isSuspended: boolean;
-  isOnline: boolean;
-  createdAt: Date;
+  bio: string | null;
+  avatar_url: string | null;
+  university: string | null;
+  course: string | null;
+  year_of_study: number | null;
+  is_suspended: boolean;
+  is_online: boolean;
+  created_at: string;
+}
+
+interface AuthContextType {
+  session: Session | null;
+  user: SupabaseUser | null;
+  profile: Profile | null;
+  profiles: Profile[];
+  isAuthenticated: boolean;
+  isAdmin: boolean;
+  isLoading: boolean;
+  isAIEnabled: boolean;
+  toggleAI: () => void;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (data: SignupData) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  updateProfile: (data: Partial<Profile>) => Promise<void>;
+  suspendUser: (userId: string) => Promise<void>;
+  unsuspendUser: (userId: string) => Promise<void>;
 }
 
 interface SignupData {
-  username: string;
-  name: string;
   email: string;
   password: string;
+  username: string;
+  name: string;
   university: string;
   course: string;
   yearOfStudy: number;
 }
 
-interface AuthContextType {
-  currentUser: User | null;
-  users: User[];
-  isAuthenticated: boolean;
-  isAdmin: boolean;
-  isAIEnabled: boolean;
-  toggleAI: () => void;
-  login: (username: string, password: string) => { success: boolean; error?: string };
-  signup: (data: SignupData) => { success: boolean; error?: string };
-  logout: () => void;
-  suspendUser: (userId: string) => void;
-  unsuspendUser: (userId: string) => void;
-  updateProfile: (data: Partial<User>) => void;
-}
-
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const INITIAL_USERS: (User & { password: string })[] = [
-  {
-    id: '1',
-    username: 'admin',
-    name: 'Platform Admin',
-    email: 'admin@uniconnect.edu',
-    role: 'admin',
-    isSuspended: false,
-    isOnline: true,
-    password: 'admin123',
-    profilePicture: '',
-    createdAt: new Date('2024-01-01'),
-  },
-  {
-    id: '2',
-    username: 'sarah_cs',
-    name: 'Sarah Johnson',
-    email: 'sarah@mit.edu',
-    role: 'student',
-    university: 'MIT',
-    course: 'Computer Science',
-    yearOfStudy: 3,
-    bio: 'CS junior passionate about AI and web dev 🚀',
-    isSuspended: false,
-    isOnline: true,
-    password: 'pass123',
-    profilePicture: '',
-    createdAt: new Date('2024-06-15'),
-  },
-  {
-    id: '3',
-    username: 'mike_eng',
-    name: 'Mike Chen',
-    email: 'mike@stanford.edu',
-    role: 'student',
-    university: 'Stanford',
-    course: 'Electrical Engineering',
-    yearOfStudy: 2,
-    bio: 'Building the future, one circuit at a time ⚡',
-    isSuspended: false,
-    isOnline: false,
-    password: 'pass123',
-    profilePicture: '',
-    createdAt: new Date('2024-08-20'),
-  },
-  {
-    id: '4',
-    username: 'emma_bio',
-    name: 'Emma Williams',
-    email: 'emma@harvard.edu',
-    role: 'student',
-    university: 'Harvard',
-    course: 'Biology',
-    yearOfStudy: 4,
-    bio: 'Pre-med student | Coffee addict ☕ | Lab rat 🧬',
-    isSuspended: false,
-    isOnline: true,
-    password: 'pass123',
-    profilePicture: '',
-    createdAt: new Date('2024-03-10'),
-  },
-  {
-    id: '5',
-    username: 'alex_math',
-    name: 'Alex Rivera',
-    email: 'alex@caltech.edu',
-    role: 'student',
-    university: 'Caltech',
-    course: 'Mathematics',
-    yearOfStudy: 1,
-    bio: 'Freshman exploring the beauty of pure mathematics 📐',
-    isSuspended: false,
-    isOnline: true,
-    password: 'pass123',
-    profilePicture: '',
-    createdAt: new Date('2025-09-01'),
-  },
-];
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [users, setUsers] = useState(INITIAL_USERS);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isAIEnabled, setIsAIEnabled] = useState(true);
 
-  const toggleAI = useCallback(() => {
-    setIsAIEnabled(prev => !prev);
+  const fetchProfile = useCallback(async (userId: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (data) setProfile(data as Profile);
+    return data as Profile | null;
   }, []);
 
-  const login = useCallback((username: string, password: string) => {
-    const user = users.find(u => u.username === username && u.password === password);
-    if (!user) return { success: false, error: 'Invalid username or password' };
-    if (user.isSuspended) return { success: false, error: 'Your account has been suspended. Contact admin.' };
+  const checkAdmin = useCallback(async (userId: string) => {
+    const { data } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('role', 'admin')
+      .maybeSingle();
+    setIsAdmin(!!data);
+  }, []);
 
-    const { password: _, ...userData } = user;
-    setCurrentUser({ ...userData, isOnline: true });
-    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isOnline: true } : u));
+  const fetchProfiles = useCallback(async () => {
+    const { data } = await supabase.from('profiles').select('*');
+    if (data) setProfiles(data as Profile[]);
+  }, []);
+
+  // Set online status
+  const setOnlineStatus = useCallback(async (userId: string, online: boolean) => {
+    await supabase.from('profiles').update({ is_online: online }).eq('user_id', userId);
+  }, []);
+
+  useEffect(() => {
+    // Set up auth listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        // Use setTimeout to avoid Supabase deadlock
+        setTimeout(async () => {
+          await fetchProfile(session.user.id);
+          await checkAdmin(session.user.id);
+          await fetchProfiles();
+          await setOnlineStatus(session.user.id, true);
+        }, 0);
+      } else {
+        setProfile(null);
+        setIsAdmin(false);
+        setProfiles([]);
+      }
+      setIsLoading(false);
+    });
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+        checkAdmin(session.user.id);
+        fetchProfiles();
+        setOnlineStatus(session.user.id, true);
+      }
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [fetchProfile, checkAdmin, fetchProfiles, setOnlineStatus]);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { success: false, error: error.message };
     return { success: true };
-  }, [users]);
+  }, []);
 
-  const signup = useCallback((data: SignupData) => {
-    const exists = users.some(u => u.username === data.username || u.email === data.email);
-    if (exists) return { success: false, error: 'Username or email already exists' };
-
-    const newUser = {
-      id: String(Date.now()),
-      username: data.username,
-      name: data.name,
+  const signup = useCallback(async (data: SignupData) => {
+    const { error } = await supabase.auth.signUp({
       email: data.email,
-      role: 'student' as const,
-      university: data.university,
-      course: data.course,
-      yearOfStudy: data.yearOfStudy,
-      isSuspended: false,
-      isOnline: true,
       password: data.password,
-      profilePicture: '',
-      createdAt: new Date(),
-    };
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: {
+          username: data.username,
+          name: data.name,
+        },
+      },
+    });
+    if (error) return { success: false, error: error.message };
 
-    setUsers(prev => [...prev, newUser]);
-    const { password: _, ...userData } = newUser;
-    setCurrentUser(userData);
-    return { success: true };
-  }, [users]);
-
-  const logout = useCallback(() => {
-    if (currentUser) {
-      setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, isOnline: false } : u));
+    // Wait for the profile trigger, then update additional fields
+    await new Promise(r => setTimeout(r, 1000));
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session?.user) {
+      await supabase.from('profiles').update({
+        university: data.university,
+        course: data.course,
+        year_of_study: data.yearOfStudy,
+      }).eq('user_id', sessionData.session.user.id);
     }
-    setCurrentUser(null);
-  }, [currentUser]);
 
-  const suspendUser = useCallback((userId: string) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, isSuspended: true } : u));
+    return { success: true };
   }, []);
 
-  const unsuspendUser = useCallback((userId: string) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, isSuspended: false } : u));
-  }, []);
+  const logout = useCallback(async () => {
+    if (user) {
+      await setOnlineStatus(user.id, false);
+    }
+    await supabase.auth.signOut();
+  }, [user, setOnlineStatus]);
 
-  const updateProfile = useCallback((data: Partial<User>) => {
-    if (!currentUser) return;
-    const updated = { ...currentUser, ...data };
-    setCurrentUser(updated);
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, ...data } : u));
-  }, [currentUser]);
+  const refreshProfile = useCallback(async () => {
+    if (user) {
+      await fetchProfile(user.id);
+      await fetchProfiles();
+    }
+  }, [user, fetchProfile, fetchProfiles]);
+
+  const updateProfile = useCallback(async (data: Partial<Profile>) => {
+    if (!user) return;
+    await supabase.from('profiles').update(data).eq('user_id', user.id);
+    await fetchProfile(user.id);
+  }, [user, fetchProfile]);
+
+  const suspendUser = useCallback(async (userId: string) => {
+    await supabase.from('profiles').update({ is_suspended: true }).eq('user_id', userId);
+    // Log the action
+    await supabase.from('audit_logs').insert({
+      action: 'suspend_user',
+      admin_id: user?.id,
+      target_id: userId,
+      target_type: 'user',
+      details: { reason: 'Admin suspension' },
+    });
+    await fetchProfiles();
+  }, [user, fetchProfiles]);
+
+  const unsuspendUser = useCallback(async (userId: string) => {
+    await supabase.from('profiles').update({ is_suspended: false }).eq('user_id', userId);
+    await supabase.from('audit_logs').insert({
+      action: 'unsuspend_user',
+      admin_id: user?.id,
+      target_id: userId,
+      target_type: 'user',
+      details: { reason: 'Admin reinstatement' },
+    });
+    await fetchProfiles();
+  }, [user, fetchProfiles]);
+
+  const toggleAI = useCallback(() => setIsAIEnabled(prev => !prev), []);
 
   return (
     <AuthContext.Provider value={{
-      currentUser,
-      users: users.map(({ password: _, ...u }) => u) as User[],
-      isAuthenticated: !!currentUser,
-      isAdmin: currentUser?.role === 'admin',
+      session,
+      user,
+      profile,
+      profiles,
+      isAuthenticated: !!session,
+      isAdmin,
+      isLoading,
       isAIEnabled,
       toggleAI,
       login,
       signup,
       logout,
+      refreshProfile,
+      updateProfile,
       suspendUser,
       unsuspendUser,
-      updateProfile,
     }}>
       {children}
     </AuthContext.Provider>

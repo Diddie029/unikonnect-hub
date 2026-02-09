@@ -1,103 +1,90 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { MOCK_POSTS, type Post } from '@/data/mockData';
+import { usePosts } from '@/hooks/usePosts';
 import PostCard from '@/components/feed/PostCard';
 import CreatePostDialog from '@/components/feed/CreatePostDialog';
-import { TrendingUp, Users, BookOpen } from 'lucide-react';
-
-const TRENDING_TOPICS = [
-  { tag: '#DataStructures', count: 128 },
-  { tag: '#CapstoneSeason', count: 95 },
-  { tag: '#LabLife', count: 74 },
-  { tag: '#MathIsMagic', count: 62 },
-  { tag: '#HackathonWeekend', count: 51 },
-];
+import ConfessionWall from '@/components/feed/ConfessionWall';
+import { TrendingUp, Users, BookOpen, Flame } from 'lucide-react';
 
 export default function Feed() {
-  const { currentUser } = useAuth();
-  const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
+  const { profile } = useAuth();
+  const { posts, loading, createPost, likePost, commentOnPost, deletePost } = usePosts();
+  const [activeTab, setActiveTab] = useState<'feed' | 'confessions'>('feed');
 
-  const handleCreatePost = (content: string, image?: string) => {
-    if (!currentUser) return;
-    const newPost: Post = {
-      id: String(Date.now()),
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userUsername: currentUser.username,
-      userUniversity: currentUser.university,
-      userAvatar: currentUser.profilePicture,
-      content,
-      image,
-      likes: [],
-      comments: [],
-      createdAt: new Date(),
-    };
-    setPosts(prev => [newPost, ...prev]);
-  };
-
-  const handleLike = (postId: string) => {
-    if (!currentUser) return;
-    setPosts(prev =>
-      prev.map(p => {
-        if (p.id !== postId) return p;
-        const liked = p.likes.includes(currentUser.id);
-        return {
-          ...p,
-          likes: liked ? p.likes.filter(id => id !== currentUser.id) : [...p.likes, currentUser.id],
-        };
-      })
-    );
-  };
-
-  const handleComment = (postId: string, content: string) => {
-    if (!currentUser) return;
-    setPosts(prev =>
-      prev.map(p => {
-        if (p.id !== postId) return p;
-        return {
-          ...p,
-          comments: [
-            ...p.comments,
-            {
-              id: String(Date.now()),
-              userId: currentUser.id,
-              userName: currentUser.name,
-              content,
-              createdAt: new Date(),
-            },
-          ],
-        };
-      })
-    );
-  };
-
-  const handleDelete = (postId: string) => {
-    setPosts(prev => prev.filter(p => p.id !== postId));
-  };
+  // Extract trending hashtags from posts
+  const hashtagCounts = new Map<string, number>();
+  posts.forEach(p => {
+    (p.hashtags || []).forEach(tag => {
+      hashtagCounts.set(tag, (hashtagCounts.get(tag) || 0) + 1);
+    });
+  });
+  const trendingHashtags = [...hashtagCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
 
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Feed */}
         <div className="lg:col-span-2 space-y-4">
-          <CreatePostDialog onPost={handleCreatePost} />
-
-          {posts.map((post, i) => (
-            <motion.div
-              key={post.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
+          {/* Tabs */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setActiveTab('feed')}
+              className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
+                activeTab === 'feed'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
             >
-              <PostCard
-                post={post}
-                onLike={handleLike}
-                onComment={handleComment}
-                onDelete={handleDelete}
-              />
-            </motion.div>
-          ))}
+              📰 Feed
+            </button>
+            <button
+              onClick={() => setActiveTab('confessions')}
+              className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${
+                activeTab === 'confessions'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              🔥 Confessions
+            </button>
+          </div>
+
+          {activeTab === 'feed' ? (
+            <>
+              <CreatePostDialog onPost={createPost} />
+
+              {loading ? (
+                <div className="text-center py-12">
+                  <p className="text-sm text-muted-foreground">Loading posts...</p>
+                </div>
+              ) : posts.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-sm text-muted-foreground">No posts yet. Be the first to share!</p>
+                </div>
+              ) : (
+                posts.map((post, i) => (
+                  <motion.div
+                    key={post.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                  >
+                    <PostCard
+                      post={post}
+                      onLike={likePost}
+                      onComment={commentOnPost}
+                      onDelete={deletePost}
+                    />
+                  </motion.div>
+                ))
+              )}
+            </>
+          ) : (
+            <ConfessionWall />
+          )}
         </div>
 
         {/* Sidebar */}
@@ -109,14 +96,16 @@ export default function Feed() {
               <h3 className="text-sm font-semibold font-display text-card-foreground">Trending</h3>
             </div>
             <div className="space-y-2.5">
-              {TRENDING_TOPICS.map(topic => (
-                <div key={topic.tag} className="flex items-center justify-between">
+              {trendingHashtags.length > 0 ? trendingHashtags.map(([tag, count]) => (
+                <div key={tag} className="flex items-center justify-between">
                   <span className="text-sm font-medium text-primary hover:underline cursor-pointer">
-                    {topic.tag}
+                    #{tag}
                   </span>
-                  <span className="text-[11px] text-muted-foreground">{topic.count} posts</span>
+                  <span className="text-[11px] text-muted-foreground">{count} posts</span>
                 </div>
-              ))}
+              )) : (
+                <p className="text-xs text-muted-foreground">No trending topics yet</p>
+              )}
             </div>
           </div>
 
@@ -131,17 +120,19 @@ export default function Feed() {
                   <Users className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-card-foreground">1,247</p>
-                  <p className="text-[11px] text-muted-foreground">Active Students</p>
+                  <p className="text-sm font-semibold text-card-foreground">{posts.length}</p>
+                  <p className="text-[11px] text-muted-foreground">Total Posts</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
-                  <BookOpen className="h-4 w-4 text-accent" />
+                  <Flame className="h-4 w-4 text-accent" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-card-foreground">42</p>
-                  <p className="text-[11px] text-muted-foreground">Discussion Rooms</p>
+                  <p className="text-sm font-semibold text-card-foreground">
+                    {posts.reduce((acc, p) => acc + p.likes_count, 0)}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">Total Likes</p>
                 </div>
               </div>
             </div>

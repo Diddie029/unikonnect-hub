@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, MessageCircle, Share2, MoreHorizontal, Trash2, Hash } from 'lucide-react';
+import { Heart, MessageCircle, Share2, MoreHorizontal, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,23 +9,38 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { type Post, type Comment, formatTimeAgo, getInitials } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
+import type { PostWithDetails } from '@/hooks/usePosts';
+
+function getInitials(name: string): string {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function formatTimeAgo(dateStr: string): string {
+  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
 
 interface PostCardProps {
-  post: Post;
+  post: PostWithDetails;
   onLike: (postId: string) => void;
   onComment: (postId: string, content: string) => void;
   onDelete: (postId: string) => void;
 }
 
 export default function PostCard({ post, onLike, onComment, onDelete }: PostCardProps) {
-  const { currentUser, isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
 
-  const isLiked = currentUser ? post.likes.includes(currentUser.id) : false;
-  const isOwn = currentUser?.id === post.userId;
+  const isOwn = user?.id === post.user_id;
 
   const handleComment = () => {
     if (!commentText.trim()) return;
@@ -33,14 +48,11 @@ export default function PostCard({ post, onLike, onComment, onDelete }: PostCard
     setCommentText('');
   };
 
-  // Extract hashtags from content for highlighting
   const renderContent = (text: string) => {
     const parts = text.split(/(#\w+)/g);
     return parts.map((part, i) =>
       part.startsWith('#') ? (
-        <span key={i} className="text-primary font-medium cursor-pointer hover:underline">
-          {part}
-        </span>
+        <span key={i} className="text-primary font-medium cursor-pointer hover:underline">{part}</span>
       ) : (
         <span key={i}>{part}</span>
       )
@@ -57,23 +69,23 @@ export default function PostCard({ post, onLike, onComment, onDelete }: PostCard
       <div className="flex items-start justify-between p-4 pb-0">
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10 border-2 border-border">
-            {post.userAvatar ? (
-              <AvatarImage src={post.userAvatar} alt={post.userName} />
+            {post.profile?.avatar_url ? (
+              <AvatarImage src={post.profile.avatar_url} alt={post.profile.name} />
             ) : null}
             <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-              {getInitials(post.userName)}
+              {post.profile ? getInitials(post.profile.name) : '?'}
             </AvatarFallback>
           </Avatar>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-card-foreground">{post.userName}</span>
-              <span className="text-xs text-muted-foreground">@{post.userUsername}</span>
+              <span className="text-sm font-semibold text-card-foreground">{post.profile?.name}</span>
+              <span className="text-xs text-muted-foreground">@{post.profile?.username}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              {post.userUniversity && (
-                <span className="text-[11px] font-medium text-primary/70">{post.userUniversity}</span>
+              {post.profile?.university && (
+                <span className="text-[11px] font-medium text-primary/70">{post.profile.university}</span>
               )}
-              <span className="text-[11px] text-muted-foreground">· {formatTimeAgo(post.createdAt)}</span>
+              <span className="text-[11px] text-muted-foreground">· {formatTimeAgo(post.created_at)}</span>
             </div>
           </div>
         </div>
@@ -105,33 +117,16 @@ export default function PostCard({ post, onLike, onComment, onDelete }: PostCard
         </p>
       </div>
 
-      {/* Image */}
-      {post.image && (
+      {/* Media */}
+      {post.media.length > 0 && (
         <div className="px-4 pb-3">
-          {post.image.startsWith('blob:') || post.image.startsWith('http') ? (
-            post.image.includes('.mp4') || post.image.includes('.webm') ? (
-              <video
-                src={post.image}
-                className="w-full rounded-lg max-h-80"
-                controls
-                muted
-              />
+          {post.media.map(m => (
+            m.media_type === 'video' ? (
+              <video key={m.id} src={m.media_url} className="w-full rounded-lg max-h-80" controls muted />
             ) : (
-              <img
-                src={post.image}
-                alt="Post attachment"
-                className="w-full rounded-lg object-cover max-h-80"
-                loading="lazy"
-              />
+              <img key={m.id} src={m.media_url} alt="Post attachment" className="w-full rounded-lg object-cover max-h-80" loading="lazy" />
             )
-          ) : (
-            <img
-              src={post.image}
-              alt="Post attachment"
-              className="w-full rounded-lg object-cover max-h-80"
-              loading="lazy"
-            />
-          )}
+          ))}
         </div>
       )}
 
@@ -140,11 +135,11 @@ export default function PostCard({ post, onLike, onComment, onDelete }: PostCard
         <Button
           variant="ghost"
           size="sm"
-          className={`flex-1 gap-2 text-xs ${isLiked ? 'text-accent hover:text-accent' : 'text-muted-foreground'}`}
+          className={`flex-1 gap-2 text-xs ${post.is_liked ? 'text-accent hover:text-accent' : 'text-muted-foreground'}`}
           onClick={() => onLike(post.id)}
         >
-          <Heart className={`h-4 w-4 ${isLiked ? 'fill-accent' : ''}`} />
-          {post.likes.length > 0 && post.likes.length}
+          <Heart className={`h-4 w-4 ${post.is_liked ? 'fill-accent' : ''}`} />
+          {post.likes_count > 0 && post.likes_count}
         </Button>
         <Button
           variant="ghost"
@@ -153,13 +148,9 @@ export default function PostCard({ post, onLike, onComment, onDelete }: PostCard
           onClick={() => setShowComments(!showComments)}
         >
           <MessageCircle className="h-4 w-4" />
-          {post.comments.length > 0 && post.comments.length}
+          {post.comments_count > 0 && post.comments_count}
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="flex-1 gap-2 text-xs text-muted-foreground"
-        >
+        <Button variant="ghost" size="sm" className="flex-1 gap-2 text-xs text-muted-foreground">
           <Share2 className="h-4 w-4" />
         </Button>
       </div>
@@ -176,14 +167,17 @@ export default function PostCard({ post, onLike, onComment, onDelete }: PostCard
               {post.comments.map((comment) => (
                 <div key={comment.id} className="flex gap-2.5">
                   <Avatar className="h-7 w-7 mt-0.5">
+                    {comment.profile?.avatar_url ? (
+                      <AvatarImage src={comment.profile.avatar_url} />
+                    ) : null}
                     <AvatarFallback className="bg-muted text-muted-foreground text-[10px] font-semibold">
-                      {getInitials(comment.userName)}
+                      {comment.profile ? getInitials(comment.profile.name) : '?'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 rounded-lg bg-muted/50 px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-card-foreground">{comment.userName}</span>
-                      <span className="text-[10px] text-muted-foreground">{formatTimeAgo(comment.createdAt)}</span>
+                      <span className="text-xs font-semibold text-card-foreground">{comment.profile?.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{formatTimeAgo(comment.created_at)}</span>
                     </div>
                     <p className="text-xs text-card-foreground/80 mt-0.5">{comment.content}</p>
                   </div>
@@ -192,16 +186,7 @@ export default function PostCard({ post, onLike, onComment, onDelete }: PostCard
             </div>
           )}
 
-          {/* Add comment */}
           <div className="flex items-center gap-2 px-4 py-3 border-t border-border/50">
-            <Avatar className="h-7 w-7">
-              {currentUser?.profilePicture ? (
-                <AvatarImage src={currentUser.profilePicture} alt={currentUser.name} />
-              ) : null}
-              <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
-                {currentUser ? getInitials(currentUser.name) : '?'}
-              </AvatarFallback>
-            </Avatar>
             <input
               type="text"
               value={commentText}
