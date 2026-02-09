@@ -16,26 +16,24 @@ const FEATURES = [
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    setTimeout(() => {
-      const result = login(username, password);
-      if (result.success) {
-        navigate('/feed');
-      } else {
-        setError(result.error || 'Login failed');
-      }
-      setLoading(false);
-    }, 500);
+    const result = await login(email, password);
+    if (result.success) {
+      navigate('/feed');
+    } else {
+      setError(result.error || 'Login failed');
+    }
+    setLoading(false);
   };
 
   return (
@@ -131,14 +129,15 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm font-medium text-foreground">
-                Username
+              <Label htmlFor="email" className="text-sm font-medium text-foreground">
+                Email
               </Label>
               <Input
-                id="username"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="Enter your username"
+                id="email"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="Enter your email"
                 required
                 className="h-11"
               />
@@ -176,13 +175,6 @@ export default function Login() {
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
-
-          <div className="mt-4 rounded-lg bg-muted/50 border border-border px-4 py-3">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Demo Account</p>
-            <p className="text-xs text-muted-foreground">
-              Admin: <span className="font-mono text-foreground">admin</span> / <span className="font-mono text-foreground">admin123</span>
-            </p>
-          </div>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Don't have an account?{' '}

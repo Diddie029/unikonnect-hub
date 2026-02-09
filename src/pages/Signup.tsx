@@ -13,10 +13,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Signup() {
   const { signup } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,23 +37,26 @@ export default function Signup() {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    setTimeout(() => {
-      const result = signup({
-        ...form,
-        yearOfStudy: parseInt(form.yearOfStudy),
+    const result = await signup({
+      ...form,
+      yearOfStudy: parseInt(form.yearOfStudy),
+    });
+
+    if (result.success) {
+      toast({
+        title: 'Account created!',
+        description: 'Please check your email to verify your account before signing in.',
       });
-      if (result.success) {
-        navigate('/feed');
-      } else {
-        setError(result.error || 'Signup failed');
-      }
-      setLoading(false);
-    }, 500);
+      navigate('/login');
+    } else {
+      setError(result.error || 'Signup failed');
+    }
+    setLoading(false);
   };
 
   return (
@@ -127,8 +132,9 @@ export default function Signup() {
                   type={showPassword ? 'text' : 'password'}
                   value={form.password}
                   onChange={e => update('password', e.target.value)}
-                  placeholder="Create a strong password"
+                  placeholder="Create a strong password (min 6 chars)"
                   required
+                  minLength={6}
                   className="pr-10"
                 />
                 <button

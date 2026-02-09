@@ -1,33 +1,50 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ImagePlus, Send, X, Video, Hash } from 'lucide-react';
+import { ImagePlus, Send, X, Video, Hash, Globe, Lock, Users as UsersIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
-import { getInitials } from '@/data/mockData';
 
 interface CreatePostDialogProps {
-  onPost: (content: string, image?: string) => void;
+  onPost: (content: string, hashtags: string[], visibility: string, mediaFiles: File[]) => Promise<void>;
 }
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/webm'];
 
+function getInitials(name: string): string {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+}
+
 export default function CreatePostDialog({ onPost }: CreatePostDialogProps) {
-  const { currentUser } = useAuth();
+  const { profile } = useAuth();
   const [content, setContent] = useState('');
-  const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
-  const [mediaType, setMediaType] = useState<'image' | 'video'>('image');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<{ url: string; type: 'image' | 'video' }[]>([]);
+  const [visibility, setVisibility] = useState('public');
   const [error, setError] = useState('');
+  const [posting, setPosting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handlePost = () => {
+  const handlePost = async () => {
     if (!content.trim()) return;
-    onPost(content.trim(), selectedMedia || undefined);
+    setPosting(true);
+    const hashtags = (content.match(/#(\w+)/g) || []).map(t => t.slice(1));
+    await onPost(content.trim(), hashtags, visibility, selectedFiles);
     setContent('');
-    setSelectedMedia(null);
+    setSelectedFiles([]);
+    previews.forEach(p => URL.revokeObjectURL(p.url));
+    setPreviews([]);
     setError('');
+    setPosting(false);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,22 +66,18 @@ export default function CreatePostDialog({ onPost }: CreatePostDialogProps) {
     }
 
     const objectUrl = URL.createObjectURL(file);
-    setSelectedMedia(objectUrl);
-    setMediaType(isImage ? 'image' : 'video');
+    setSelectedFiles(prev => [...prev, file]);
+    setPreviews(prev => [...prev, { url: objectUrl, type: isImage ? 'image' : 'video' }]);
 
-    // Reset input so same file can be selected again
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const removeMedia = () => {
-    if (selectedMedia) {
-      URL.revokeObjectURL(selectedMedia);
-    }
-    setSelectedMedia(null);
-    setError('');
+  const removeMedia = (index: number) => {
+    URL.revokeObjectURL(previews[index].url);
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    setPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Extract hashtags from content
   const hashtags = content.match(/#\w+/g) || [];
 
   return (
@@ -75,11 +88,11 @@ export default function CreatePostDialog({ onPost }: CreatePostDialogProps) {
     >
       <div className="flex gap-3">
         <Avatar className="h-10 w-10 border-2 border-border">
-          {currentUser?.profilePicture ? (
-            <AvatarImage src={currentUser.profilePicture} alt={currentUser.name} />
+          {profile?.avatar_url ? (
+            <AvatarImage src={profile.avatar_url} alt={profile.name} />
           ) : null}
           <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-            {currentUser ? getInitials(currentUser.name) : '?'}
+            {profile ? getInitials(profile.name) : '?'}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1">
@@ -91,7 +104,6 @@ export default function CreatePostDialog({ onPost }: CreatePostDialogProps) {
             rows={2}
           />
 
-          {/* Hashtag preview */}
           {hashtags.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2">
               {hashtags.map((tag, i) => (
@@ -106,38 +118,28 @@ export default function CreatePostDialog({ onPost }: CreatePostDialogProps) {
             </div>
           )}
 
-          {/* Error message */}
-          {error && (
-            <p className="text-xs text-destructive mb-2">{error}</p>
-          )}
+          {error && <p className="text-xs text-destructive mb-2">{error}</p>}
 
-          {/* Media preview */}
-          {selectedMedia && (
-            <div className="relative mt-2 mb-2">
-              {mediaType === 'image' ? (
-                <img
-                  src={selectedMedia}
-                  alt="Preview"
-                  className="w-full max-h-48 object-cover rounded-lg"
-                />
-              ) : (
-                <video
-                  src={selectedMedia}
-                  className="w-full max-h-48 rounded-lg"
-                  controls
-                  muted
-                />
-              )}
-              <button
-                onClick={removeMedia}
-                className="absolute top-2 right-2 h-6 w-6 rounded-full bg-foreground/60 flex items-center justify-center text-background hover:bg-foreground/80 transition-colors"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+          {previews.length > 0 && (
+            <div className="flex gap-2 mt-2 mb-2 overflow-x-auto">
+              {previews.map((preview, i) => (
+                <div key={i} className="relative shrink-0">
+                  {preview.type === 'image' ? (
+                    <img src={preview.url} alt="Preview" className="h-32 w-auto rounded-lg object-cover" />
+                  ) : (
+                    <video src={preview.url} className="h-32 w-auto rounded-lg" controls muted />
+                  )}
+                  <button
+                    onClick={() => removeMedia(i)}
+                    className="absolute top-1 right-1 h-5 w-5 rounded-full bg-foreground/60 flex items-center justify-center text-background hover:bg-foreground/80 transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
 
-          {/* Hidden file input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -176,15 +178,25 @@ export default function CreatePostDialog({ onPost }: CreatePostDialogProps) {
                 <Video className="h-4 w-4" />
                 Video
               </Button>
+              <Select value={visibility} onValueChange={setVisibility}>
+                <SelectTrigger className="h-7 w-auto gap-1 text-xs border-none shadow-none px-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public"><span className="flex items-center gap-1.5"><Globe className="h-3 w-3" /> Public</span></SelectItem>
+                  <SelectItem value="course_only"><span className="flex items-center gap-1.5"><UsersIcon className="h-3 w-3" /> Course Only</span></SelectItem>
+                  <SelectItem value="friends"><span className="flex items-center gap-1.5"><Lock className="h-3 w-3" /> Friends</span></SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <Button
               size="sm"
               className="gap-1.5 text-xs"
               onClick={handlePost}
-              disabled={!content.trim()}
+              disabled={!content.trim() || posting}
             >
               <Send className="h-3.5 w-3.5" />
-              Post
+              {posting ? 'Posting...' : 'Post'}
             </Button>
           </div>
         </div>

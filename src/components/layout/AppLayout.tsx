@@ -16,14 +16,19 @@ import {
   AlertTriangle,
   Sun,
   Moon,
+  Mail,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { getInitials } from '@/data/mockData';
 import AIChatBot from '@/components/ai/AIChatBot';
+
+function getInitials(name: string): string {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+}
 
 const NAV_ITEMS = [
   { path: '/feed', label: 'Feed', icon: Home },
+  { path: '/messages', label: 'Messages', icon: Mail },
   { path: '/discussions', label: 'Discussions', icon: MessageSquare },
   { path: '/profile', label: 'Profile', icon: User },
 ];
@@ -31,7 +36,7 @@ const NAV_ITEMS = [
 const ADMIN_NAV = { path: '/admin', label: 'Admin Panel', icon: Shield };
 
 export default function AppLayout() {
-  const { currentUser, isAdmin, logout } = useAuth();
+  const { profile, isAdmin, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,7 +53,7 @@ export default function AppLayout() {
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Suspended overlay */}
       <AnimatePresence>
-        {currentUser?.isSuspended && (
+        {profile?.is_suspended && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -57,20 +62,9 @@ export default function AppLayout() {
           >
             <div className="flex flex-col items-center gap-4 p-8 text-center">
               <AlertTriangle className="h-16 w-16 text-accent" />
-              <h1 className="text-3xl font-bold font-display text-primary-foreground">
-                Account Suspended
-              </h1>
-              <p className="max-w-md text-primary-foreground/80">
-                Your account has been suspended by an administrator. 
-                Please contact support for more information.
-              </p>
-              <Button
-                variant="outline"
-                className="mt-4 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10"
-                onClick={logout}
-              >
-                Sign Out
-              </Button>
+              <h1 className="text-3xl font-bold font-display text-primary-foreground">Account Suspended</h1>
+              <p className="max-w-md text-primary-foreground/80">Your account has been suspended. Contact support for info.</p>
+              <Button variant="outline" className="mt-4 border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10" onClick={logout}>Sign Out</Button>
             </div>
           </motion.div>
         )}
@@ -78,20 +72,16 @@ export default function AppLayout() {
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex md:w-64 flex-col bg-sidebar border-r border-sidebar-border">
-        {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg gradient-primary">
             <GraduationCap className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-sm font-bold font-display text-sidebar-primary-foreground">
-              UniConnect
-            </h1>
+            <h1 className="text-sm font-bold font-display text-sidebar-primary-foreground">UniConnect</h1>
             <p className="text-[10px] text-sidebar-foreground/60">Hub</p>
           </div>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1">
           {allNavItems.map(item => {
             const isActive = location.pathname === item.path;
@@ -105,57 +95,40 @@ export default function AppLayout() {
                     : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
                 }`}
               >
-                <item.icon className="h-4.5 w-4.5" />
+                <item.icon className="h-4 w-4" />
                 {item.label}
                 {item.path === '/admin' && (
-                  <span className="ml-auto flex h-5 items-center rounded-full bg-accent/20 px-2 text-[10px] font-semibold text-accent">
-                    ADMIN
-                  </span>
+                  <span className="ml-auto flex h-5 items-center rounded-full bg-accent/20 px-2 text-[10px] font-semibold text-accent">ADMIN</span>
                 )}
               </button>
             );
           })}
         </nav>
 
-        {/* User section */}
         <div className="border-t border-sidebar-border p-3">
           <div className="flex items-center gap-3 rounded-lg px-3 py-2">
             <Avatar className="h-8 w-8 border border-sidebar-border">
-              {currentUser?.profilePicture ? (
-                <AvatarImage src={currentUser.profilePicture} alt={currentUser.name} />
-              ) : null}
+              {profile?.avatar_url ? <AvatarImage src={profile.avatar_url} alt={profile.name} /> : null}
               <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-xs font-semibold">
-                {currentUser ? getInitials(currentUser.name) : '?'}
+                {profile ? getInitials(profile.name) : '?'}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">
-                {currentUser?.name}
-              </p>
-              <p className="text-[11px] text-sidebar-foreground/50 truncate">
-                @{currentUser?.username}
-              </p>
+              <p className="text-sm font-medium text-sidebar-foreground truncate">{profile?.name}</p>
+              <p className="text-[11px] text-sidebar-foreground/50 truncate">@{profile?.username}</p>
             </div>
-            <button
-              onClick={logout}
-              className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
-              title="Sign out"
-            >
+            <button onClick={logout} className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors" title="Sign out">
               <LogOut className="h-4 w-4" />
             </button>
           </div>
         </div>
       </aside>
 
-      {/* Main content area */}
+      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top header */}
         <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4 md:px-6">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden text-foreground/70"
-            >
+            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden text-foreground/70">
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
             <h2 className="text-sm font-semibold font-display text-foreground">
@@ -163,81 +136,41 @@ export default function AppLayout() {
             </h2>
           </div>
           <div className="flex items-center gap-2">
-            {/* Theme toggle */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              className="text-muted-foreground hover:text-foreground"
-              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-            >
-              {theme === 'light' ? (
-                <Moon className="h-4.5 w-4.5" />
-              ) : (
-                <Sun className="h-4.5 w-4.5" />
-              )}
+            <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-muted-foreground hover:text-foreground" title={theme === 'light' ? 'Dark mode' : 'Light mode'}>
+              {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
             </Button>
             <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-4.5 w-4.5 text-muted-foreground" />
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent animate-pulse-dot" />
+              <Bell className="h-4 w-4 text-muted-foreground" />
             </Button>
-            <Avatar className="h-8 w-8 md:hidden">
-              {currentUser?.profilePicture ? (
-                <AvatarImage src={currentUser.profilePicture} alt={currentUser?.name} />
-              ) : null}
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                {currentUser ? getInitials(currentUser.name) : '?'}
-              </AvatarFallback>
-            </Avatar>
           </div>
         </header>
 
-        {/* Mobile menu */}
         <AnimatePresence>
           {mobileMenuOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="md:hidden bg-card border-b border-border overflow-hidden"
-            >
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="md:hidden bg-card border-b border-border overflow-hidden">
               <nav className="p-3 space-y-1">
                 {allNavItems.map(item => {
                   const isActive = location.pathname === item.path;
                   return (
-                    <button
-                      key={item.path}
-                      onClick={() => handleNavigate(item.path)}
-                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
-                        isActive
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:bg-muted'
-                      }`}
-                    >
+                    <button key={item.path} onClick={() => handleNavigate(item.path)} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}>
                       <item.icon className="h-4 w-4" />
                       {item.label}
                     </button>
                   );
                 })}
-                <button
-                  onClick={logout}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign Out
+                <button onClick={logout} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10">
+                  <LogOut className="h-4 w-4" /> Sign Out
                 </button>
               </nav>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Page content */}
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
       </div>
 
-      {/* AI Chatbot */}
       <AIChatBot />
     </div>
   );
