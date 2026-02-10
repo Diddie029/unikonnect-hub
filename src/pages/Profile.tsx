@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFollows } from '@/hooks/useFollows';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import VerificationBadge from '@/components/profile/VerificationBadge';
+import VerificationApply from '@/components/profile/VerificationApply';
 import {
   GraduationCap,
   BookOpen,
@@ -17,6 +20,9 @@ import {
   Save,
   X,
   Camera,
+  UserPlus,
+  UserMinus,
+  Users,
 } from 'lucide-react';
 
 function getInitials(name: string): string {
@@ -24,7 +30,8 @@ function getInitials(name: string): string {
 }
 
 export default function Profile() {
-  const { user, profile, updateProfile, refreshProfile } = useAuth();
+  const { user, profile, profiles, updateProfile, refreshProfile } = useAuth();
+  const { followingCount, followersCount, isFollowing, followUser, unfollowUser } = useFollows();
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
@@ -36,6 +43,8 @@ export default function Profile() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showFollowers, setShowFollowers] = useState(false);
+  const [showFollowing, setShowFollowing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!profile || !user) return null;
@@ -143,7 +152,10 @@ export default function Profile() {
               {editing ? (
                 <Input value={form.name} onChange={e => update('name', e.target.value)} className="text-lg font-bold mb-1 h-9" />
               ) : (
-                <h1 className="text-xl font-bold font-display text-card-foreground">{profile.name}</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-bold font-display text-card-foreground">{profile.name}</h1>
+                  <VerificationBadge isVerified={(profile as any).is_verified} />
+                </div>
               )}
               <p className="text-sm text-muted-foreground">@{profile.username}</p>
             </div>
@@ -164,6 +176,18 @@ export default function Profile() {
             )}
           </div>
 
+          {/* Follow stats */}
+          <div className="flex items-center gap-4 mt-3">
+            <button className="text-sm" onClick={() => setShowFollowers(!showFollowers)}>
+              <span className="font-semibold text-card-foreground">{followersCount}</span>{' '}
+              <span className="text-muted-foreground">followers</span>
+            </button>
+            <button className="text-sm" onClick={() => setShowFollowing(!showFollowing)}>
+              <span className="font-semibold text-card-foreground">{followingCount}</span>{' '}
+              <span className="text-muted-foreground">following</span>
+            </button>
+          </div>
+
           {editing ? (
             <div className="mt-3">
               <Label className="text-xs font-medium">Bio</Label>
@@ -175,6 +199,46 @@ export default function Profile() {
         </div>
       </motion.div>
 
+      {/* Suggested users to follow */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="rounded-xl bg-card shadow-card p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Users className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold font-display text-card-foreground">Students</h2>
+        </div>
+        <div className="space-y-3">
+          {profiles.filter(p => p.user_id !== user.id).map(p => (
+            <div key={p.id} className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Avatar className="h-8 w-8">
+                  {p.avatar_url ? <AvatarImage src={p.avatar_url} /> : null}
+                  <AvatarFallback className="bg-primary/10 text-primary text-[10px]">{getInitials(p.name)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-medium text-card-foreground">{p.name}</span>
+                    <VerificationBadge isVerified={(p as any).is_verified} className="h-3 w-3" />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">@{p.username}</p>
+                </div>
+              </div>
+              {isFollowing(p.user_id) ? (
+                <Button variant="outline" size="sm" className="gap-1 text-xs h-7" onClick={() => unfollowUser(p.user_id)}>
+                  <UserMinus className="h-3 w-3" /> Unfollow
+                </Button>
+              ) : (
+                <Button size="sm" className="gap-1 text-xs h-7" onClick={() => followUser(p.user_id)}>
+                  <UserPlus className="h-3 w-3" /> Follow
+                </Button>
+              )}
+            </div>
+          ))}
+          {profiles.filter(p => p.user_id !== user.id).length === 0 && (
+            <p className="text-xs text-muted-foreground">No other students yet.</p>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Academic Info */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -210,8 +274,8 @@ export default function Profile() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/10">
-              <Calendar className="h-4 w-4 text-success" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
             </div>
             <div>
               <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">Year</p>
@@ -229,6 +293,9 @@ export default function Profile() {
           </div>
         </div>
       </motion.div>
+
+      {/* Verification */}
+      <VerificationApply />
 
       <motion.div
         initial={{ opacity: 0, y: 12 }}

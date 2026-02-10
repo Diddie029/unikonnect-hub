@@ -1,11 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePosts } from '@/hooks/usePosts';
 import PostCard from '@/components/feed/PostCard';
 import CreatePostDialog from '@/components/feed/CreatePostDialog';
 import ConfessionWall from '@/components/feed/ConfessionWall';
-import { TrendingUp, Users, BookOpen, Flame } from 'lucide-react';
+import StoriesBar from '@/components/feed/StoriesBar';
+import { TrendingUp, Users, Flame } from 'lucide-react';
 
 export default function Feed() {
   const { profile } = useAuth();
@@ -54,6 +55,7 @@ export default function Feed() {
 
           {activeTab === 'feed' ? (
             <>
+              <StoriesBar />
               <CreatePostDialog onPost={createPost} />
 
               {loading ? (

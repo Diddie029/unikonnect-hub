@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConfessions } from '@/hooks/useConfessions';
 import { useAuditLogs } from '@/hooks/useAuditLogs';
+import { useVerification } from '@/hooks/useVerification';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import VerificationBadge from '@/components/profile/VerificationBadge';
 import {
   Users,
   FileText,
@@ -22,9 +25,8 @@ import {
   Bot,
   Flame,
   Megaphone,
-  Eye,
-  EyeOff,
   ClipboardList,
+  BadgeCheck,
 } from 'lucide-react';
 import {
   BarChart,
@@ -44,10 +46,12 @@ export default function AdminDashboard() {
   const { profiles, isAdmin, isAIEnabled, toggleAI, suspendUser, unsuspendUser, user } = useAuth();
   const { pendingConfessions, approveConfession, rejectConfession } = useConfessions();
   const { logs } = useAuditLogs();
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'moderation' | 'logs' | 'broadcast'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'moderation' | 'verification' | 'logs' | 'broadcast'>('overview');
+  const { pendingRequests, approveVerification, rejectVerification } = useVerification();
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [broadcasting, setBroadcasting] = useState(false);
   const [postCount, setPostCount] = useState(0);
+  const [rejectNotes, setRejectNotes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     supabase.from('posts').select('id', { count: 'exact', head: true }).then(({ count }) => {
@@ -78,10 +82,11 @@ export default function AdminDashboard() {
     { label: 'Suspended', value: suspendedCount, icon: Ban, color: 'bg-destructive/10 text-destructive' },
   ];
 
-  const tabs: { id: 'overview' | 'users' | 'moderation' | 'logs' | 'broadcast'; label: string; icon: any; badge?: number }[] = [
+  const tabs: { id: typeof activeTab; label: string; icon: any; badge?: number }[] = [
     { id: 'overview', label: 'Overview', icon: TrendingUp },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'moderation', label: 'Moderation', icon: Flame, badge: pendingConfessions.length },
+    { id: 'verification', label: 'Verification', icon: BadgeCheck, badge: pendingRequests.length },
     { id: 'logs', label: 'Audit Logs', icon: ClipboardList },
     { id: 'broadcast', label: 'Broadcast', icon: Megaphone },
   ];
@@ -243,6 +248,55 @@ export default function AdminDashboard() {
                         <CheckCircle2 className="h-3 w-3" /> Approve
                       </Button>
                       <Button size="sm" variant="outline" className="gap-1 text-xs text-destructive border-destructive/30" onClick={() => rejectConfession(c.id)}>
+                        <XCircle className="h-3 w-3" /> Reject
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {activeTab === 'verification' && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+          <div className="rounded-xl bg-card shadow-card p-5">
+            <h2 className="text-sm font-semibold font-display text-card-foreground mb-3 flex items-center gap-2">
+              <BadgeCheck className="h-4 w-4 text-primary" /> Verification Requests
+              {pendingRequests.length > 0 && (
+                <span className="bg-primary/10 text-primary text-[10px] font-semibold px-2 py-0.5 rounded-full">{pendingRequests.length} pending</span>
+              )}
+            </h2>
+            {pendingRequests.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No pending verification requests.</p>
+            ) : (
+              <div className="space-y-4">
+                {pendingRequests.map(req => (
+                  <div key={req.id} className="rounded-lg bg-muted/50 p-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Avatar className="h-9 w-9">
+                        {req.profile?.avatar_url ? <AvatarImage src={req.profile.avatar_url} /> : null}
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs">{req.profile ? getInitials(req.profile.name) : '?'}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <span className="text-sm font-medium text-card-foreground">{req.profile?.name}</span>
+                        <p className="text-[11px] text-muted-foreground">@{req.profile?.username} · KSH {req.amount_kshs.toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-card-foreground mb-1"><span className="font-medium">Reason:</span> {req.reason}</p>
+                    <p className="text-[10px] text-muted-foreground mb-3">Payment ref: {req.payment_reference || 'N/A'} · {new Date(req.created_at).toLocaleString()}</p>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" className="gap-1 text-xs text-success border-success/30" onClick={() => approveVerification(req.id, req.user_id)}>
+                        <CheckCircle2 className="h-3 w-3" /> Approve
+                      </Button>
+                      <Input
+                        value={rejectNotes[req.id] || ''}
+                        onChange={e => setRejectNotes(prev => ({ ...prev, [req.id]: e.target.value }))}
+                        placeholder="Rejection reason..."
+                        className="h-8 text-xs flex-1"
+                      />
+                      <Button size="sm" variant="outline" className="gap-1 text-xs text-destructive border-destructive/30" onClick={() => rejectVerification(req.id, req.user_id, rejectNotes[req.id] || 'Not approved')}>
                         <XCircle className="h-3 w-3" /> Reject
                       </Button>
                     </div>

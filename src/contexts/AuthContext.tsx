@@ -14,6 +14,7 @@ export interface Profile {
   year_of_study: number | null;
   is_suspended: boolean;
   is_online: boolean;
+  is_verified: boolean;
   created_at: string;
 }
 

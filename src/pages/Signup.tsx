@@ -37,9 +37,22 @@ export default function Signup() {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!isValidEmail(form.email)) {
+      setError('Please enter a valid email address (e.g. john@university.edu)');
+      return;
+    }
+
+    if (form.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
     setLoading(true);
 
     const result = await signup({

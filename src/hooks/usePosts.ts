@@ -15,6 +15,7 @@ export interface PostWithDetails {
     name: string;
     avatar_url: string | null;
     university: string | null;
+    is_verified?: boolean;
   } | null;
   media: { id: string; media_url: string; media_type: string }[];
   likes_count: number;
@@ -49,7 +50,7 @@ export function usePosts() {
 
     // Fetch related data in parallel
     const [profilesRes, mediaRes, likesRes, commentsRes] = await Promise.all([
-      supabase.from('profiles').select('user_id, username, name, avatar_url, university').in('user_id', userIds),
+      supabase.from('profiles').select('user_id, username, name, avatar_url, university, is_verified').in('user_id', userIds),
       supabase.from('post_media').select('*').in('post_id', postIds),
       supabase.from('likes').select('*').in('post_id', postIds),
       supabase.from('comments').select('*').in('post_id', postIds).order('created_at', { ascending: true }),
