@@ -28,6 +28,7 @@ UniConnect Hub is a **real-time university social and study platform** designed 
 - Moderate discussions
 - View activity analytics
 - Receive user reports
+- on 10-02-2026, I added a user role --**moderator** their job is to ensure that whatever is posted on the timelines is accurate and follows rules and regulations
 
 ---
 
