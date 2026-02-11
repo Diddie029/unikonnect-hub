@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFollows } from '@/hooks/useFollows';
@@ -31,6 +32,7 @@ function getInitials(name: string): string {
 
 export default function Profile() {
   const { user, profile, profiles, updateProfile, refreshProfile } = useAuth();
+  const navigate = useNavigate();
   const { followingCount, followersCount, isFollowing, followUser, unfollowUser } = useFollows();
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
@@ -208,14 +210,14 @@ export default function Profile() {
         <div className="space-y-3">
           {profiles.filter(p => p.user_id !== user.id).map(p => (
             <div key={p.id} className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate(`/user/${p.user_id}`)}>
                 <Avatar className="h-8 w-8">
                   {p.avatar_url ? <AvatarImage src={p.avatar_url} /> : null}
                   <AvatarFallback className="bg-primary/10 text-primary text-[10px]">{getInitials(p.name)}</AvatarFallback>
                 </Avatar>
                 <div>
                   <div className="flex items-center gap-1">
-                    <span className="text-xs font-medium text-card-foreground">{p.name}</span>
+                    <span className="text-xs font-medium text-card-foreground hover:underline">{p.name}</span>
                     <VerificationBadge isVerified={(p as any).is_verified} className="h-3 w-3" />
                   </div>
                   <p className="text-[10px] text-muted-foreground">@{p.username}</p>

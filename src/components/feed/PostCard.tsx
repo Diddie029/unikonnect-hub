@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Heart, MessageCircle, Share2, MoreHorizontal, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -38,10 +39,19 @@ interface PostCardProps {
 
 export default function PostCard({ post, onLike, onComment, onDelete }: PostCardProps) {
   const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
 
   const isOwn = user?.id === post.user_id;
+
+  const goToProfile = (userId: string) => {
+    if (userId === user?.id) {
+      navigate('/profile');
+    } else {
+      navigate(`/user/${userId}`);
+    }
+  };
 
   const handleComment = () => {
     if (!commentText.trim()) return;
@@ -70,7 +80,7 @@ export default function PostCard({ post, onLike, onComment, onDelete }: PostCard
     >
       {/* Header */}
       <div className="flex items-start justify-between p-4 pb-0">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => goToProfile(post.user_id)}>
           <Avatar className="h-10 w-10 border-2 border-border">
             {post.profile?.avatar_url ? (
               <AvatarImage src={post.profile.avatar_url} alt={post.profile.name} />
@@ -81,7 +91,7 @@ export default function PostCard({ post, onLike, onComment, onDelete }: PostCard
           </Avatar>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-card-foreground">{post.profile?.name}</span>
+              <span className="text-sm font-semibold text-card-foreground hover:underline">{post.profile?.name}</span>
               <VerificationBadge isVerified={(post.profile as any)?.is_verified} />
               <span className="text-xs text-muted-foreground">@{post.profile?.username}</span>
             </div>

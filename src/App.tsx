@@ -14,6 +14,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Discussions from "./pages/Discussions";
 import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
+import UserProfile from "./pages/UserProfile";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const AppRoutes = () => (
       <Route path="/messages" element={<Messages />} />
       <Route path="/discussions" element={<Discussions />} />
       <Route path="/profile" element={<Profile />} />
+      <Route path="/user/:userId" element={<UserProfile />} />
       <Route path="/admin" element={<AdminDashboard />} />
     </Route>
     <Route path="*" element={<NotFound />} />
