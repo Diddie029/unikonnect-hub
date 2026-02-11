@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { createNotification } from '@/hooks/useNotifications';
 
 export interface PostWithDetails {
   id: string;
@@ -182,13 +183,59 @@ export function usePosts() {
       await supabase.from('likes').delete().eq('post_id', postId).eq('user_id', user.id);
     } else {
       await supabase.from('likes').insert({ post_id: postId, user_id: user.id });
+      // Notify post owner
+      if (post.user_id !== user.id) {
+        const { data: myProfile } = await supabase.from('profiles').select('name').eq('user_id', user.id).single();
+        createNotification({
+          userId: post.user_id,
+          type: 'like',
+          title: `${myProfile?.name || 'Someone'} liked your post`,
+          message: post.content.slice(0, 80),
+          relatedId: postId,
+        });
+      }
     }
   }, [user, posts]);
 
   const commentOnPost = useCallback(async (postId: string, content: string) => {
     if (!user) return;
     await supabase.from('comments').insert({ post_id: postId, user_id: user.id, content });
-  }, [user]);
+    // Notify post owner
+    const post = posts.find(p => p.id === postId);
+    if (post && post.user_id !== user.id) {
+      const { data: myProfile } = await supabase.from('profiles').select('name').eq('user_id', user.id).single();
+      createNotification({
+        userId: post.user_id,
+        type: 'comment',
+        title: `${myProfile?.name || 'Someone'} commented on your post`,
+        message: content.slice(0, 80),
+        relatedId: postId,
+      });
+    }
+    // Check for @mentions and notify
+    const mentions = content.match(/@(\w+)/g);
+    if (mentions) {
+      const usernames = mentions.map(m => m.slice(1));
+      const { data: mentionedProfiles } = await supabase
+        .from('profiles')
+        .select('user_id, username')
+        .in('username', usernames);
+      if (mentionedProfiles) {
+        const { data: myProfile } = await supabase.from('profiles').select('name').eq('user_id', user.id).single();
+        for (const mp of mentionedProfiles) {
+          if (mp.user_id !== user.id) {
+            createNotification({
+              userId: mp.user_id,
+              type: 'mention',
+              title: `${myProfile?.name || 'Someone'} mentioned you`,
+              message: content.slice(0, 80),
+              relatedId: postId,
+            });
+          }
+        }
+      }
+    }
+  }, [user, posts]);
 
   const deletePost = useCallback(async (postId: string) => {
     await supabase.from('posts').delete().eq('id', postId);

@@ -21,6 +21,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import AIChatBot from '@/components/ai/AIChatBot';
+import NotificationDropdown from '@/components/layout/NotificationDropdown';
 
 function getInitials(name: string): string {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -139,9 +140,7 @@ export default function AppLayout() {
             <Button variant="ghost" size="icon" onClick={toggleTheme} className="text-muted-foreground hover:text-foreground" title={theme === 'light' ? 'Dark mode' : 'Light mode'}>
               {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
             </Button>
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-4 w-4 text-muted-foreground" />
-            </Button>
+            <NotificationDropdown />
           </div>
         </header>
 

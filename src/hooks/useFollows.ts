@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { createNotification } from '@/hooks/useNotifications';
 
 export function useFollows() {
   const { user } = useAuth();
@@ -35,6 +36,14 @@ export function useFollows() {
   const followUser = useCallback(async (userId: string) => {
     if (!user || userId === user.id) return;
     await supabase.from('follows').insert({ follower_id: user.id, following_id: userId });
+    // Notify the followed user
+    const { data: myProfile } = await supabase.from('profiles').select('name').eq('user_id', user.id).single();
+    createNotification({
+      userId,
+      type: 'follow',
+      title: `${myProfile?.name || 'Someone'} started following you`,
+      message: 'Check out their profile!',
+    });
   }, [user]);
 
   const unfollowUser = useCallback(async (userId: string) => {

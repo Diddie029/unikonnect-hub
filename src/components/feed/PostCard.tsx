@@ -50,9 +50,11 @@ export default function PostCard({ post, onLike, onComment, onDelete }: PostCard
   };
 
   const renderContent = (text: string) => {
-    const parts = text.split(/(#\w+)/g);
+    const parts = text.split(/(#\w+|@\w+)/g);
     return parts.map((part, i) =>
       part.startsWith('#') ? (
+        <span key={i} className="text-primary font-medium cursor-pointer hover:underline">{part}</span>
+      ) : part.startsWith('@') ? (
         <span key={i} className="text-primary font-medium cursor-pointer hover:underline">{part}</span>
       ) : (
         <span key={i}>{part}</span>

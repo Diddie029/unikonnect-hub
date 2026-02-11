@@ -2,16 +2,19 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePosts } from '@/hooks/usePosts';
+import { useFollows } from '@/hooks/useFollows';
 import PostCard from '@/components/feed/PostCard';
 import CreatePostDialog from '@/components/feed/CreatePostDialog';
 import ConfessionWall from '@/components/feed/ConfessionWall';
 import StoriesBar from '@/components/feed/StoriesBar';
-import { TrendingUp, Users, Flame } from 'lucide-react';
+import { TrendingUp, Users, Flame, BookOpen, Sparkles, PartyPopper } from 'lucide-react';
 
 export default function Feed() {
   const { profile } = useAuth();
   const { posts, loading, createPost, likePost, commentOnPost, deletePost } = usePosts();
+  const { following } = useFollows();
   const [activeTab, setActiveTab] = useState<'feed' | 'confessions'>('feed');
+  const [moodFilter, setMoodFilter] = useState<'social' | 'study' | 'fun'>('social');
 
   // Extract trending hashtags from posts
   const hashtagCounts = new Map<string, number>();
@@ -53,36 +56,96 @@ export default function Feed() {
             </button>
           </div>
 
+          {/* Mood Filter */}
+          {activeTab === 'feed' && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setMoodFilter('social')}
+                className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
+                  moodFilter === 'social'
+                    ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
+                    : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                <Sparkles className="inline h-3 w-3 mr-1" />Social
+              </button>
+              <button
+                onClick={() => setMoodFilter('study')}
+                className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
+                  moodFilter === 'study'
+                    ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
+                    : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                <BookOpen className="inline h-3 w-3 mr-1" />Study
+              </button>
+              <button
+                onClick={() => setMoodFilter('fun')}
+                className={`rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
+                  moodFilter === 'fun'
+                    ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
+                    : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                <PartyPopper className="inline h-3 w-3 mr-1" />Fun
+              </button>
+            </div>
+          )}
+
           {activeTab === 'feed' ? (
             <>
               <StoriesBar />
               <CreatePostDialog onPost={createPost} />
 
-              {loading ? (
-                <div className="text-center py-12">
-                  <p className="text-sm text-muted-foreground">Loading posts...</p>
-                </div>
-              ) : posts.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-sm text-muted-foreground">No posts yet. Be the first to share!</p>
-                </div>
-              ) : (
-                posts.map((post, i) => (
-                  <motion.div
-                    key={post.id}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                  >
-                    <PostCard
-                      post={post}
-                      onLike={likePost}
-                      onComment={commentOnPost}
-                      onDelete={deletePost}
-                    />
-                  </motion.div>
-                ))
-              )}
+              {(() => {
+                // Filter posts by mood
+                const filteredPosts = posts.filter(post => {
+                  if (moodFilter === 'study') {
+                    return post.visibility === 'course_only' ||
+                      (post.hashtags || []).some(h => /study|exam|lecture|notes|assignment|lab|class|course|library/i.test(h));
+                  }
+                  if (moodFilter === 'fun') {
+                    // Trending: all public posts sorted by engagement
+                    return post.visibility === 'public';
+                  }
+                  // Social: friends' posts (people you follow) + your own
+                  return post.user_id === profile?.user_id || following.includes(post.user_id);
+                });
+
+                const sortedPosts = moodFilter === 'fun'
+                  ? [...filteredPosts].sort((a, b) => (b.likes_count + b.comments_count) - (a.likes_count + a.comments_count))
+                  : filteredPosts;
+
+                return loading ? (
+                  <div className="text-center py-12">
+                    <p className="text-sm text-muted-foreground">Loading posts...</p>
+                  </div>
+                ) : sortedPosts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-sm text-muted-foreground">
+                      {moodFilter === 'social' ? 'Follow people to see their posts here!' :
+                       moodFilter === 'study' ? 'No study posts yet. Use #study hashtags!' :
+                       'No trending posts yet. Be the first to share!'}
+                    </p>
+                  </div>
+                ) : (
+                  sortedPosts.map((post, i) => (
+                    <motion.div
+                      key={post.id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                    >
+                      <PostCard
+                        post={post}
+                        onLike={likePost}
+                        onComment={commentOnPost}
+                        onDelete={deletePost}
+                      />
+                    </motion.div>
+                  ))
+                );
+              })()}
             </>
           ) : (
             <ConfessionWall />
