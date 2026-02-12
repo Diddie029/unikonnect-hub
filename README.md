@@ -2,6 +2,8 @@
 
 UniConnect Hub is a **real-time university social and study platform** designed to connect students through academic discussions, daily status updates, and media sharing — all managed with **live admin moderation**.
 
+**Have any suggestion or experienced any issue ??** `Reach me through my email kiprodiddie@gmail.com`
+
 **BUILT ENTIRELY WITH AI THROUGH WELL STRUCTURED PROMPT ENGINEERING**
 
 ---
