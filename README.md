@@ -10,7 +10,7 @@ UniConnect Hub is a **real-time university social and study platform** designed 
 
 ### 👥 User Roles
 #### 👨‍🎓 Students
-- Create an account & log in
+- Create an account & log in ***NB*** `Use a functional/active email addres to create an account`
 - Update profile (University, Course, Year, Profile Picture)
 - Post daily statuses in real time
 - Upload photos & videos
@@ -19,9 +19,7 @@ UniConnect Hub is a **real-time university social and study platform** designed 
 - Receive real-time notifications
 
 #### 🛡️ Admin
-- Pre-seeded demo account:
-  - **Username:** `admin`
-  - **Password:** `admin123`
+-admin pre-seeded account:
 - View all users
 - Suspend & reinstate users **in real time**
 - Delete posts, comments, and media
