@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const STUDENT_SYSTEM_PROMPT = `You are UniBot, the friendly AI assistant for UniConnect Hub — a university social and study platform.
+const STUDENT_SYSTEM_PROMPT = `You are UniBot, the friendly AI assistant for UniConnect Hub — a university social, interact and study platform.
 
 You help students with:
 1. **FAQs**: Answer common questions about using UniConnect Hub (posting, discussions, profiles, notifications, etc.)
