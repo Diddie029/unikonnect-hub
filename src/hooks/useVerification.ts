@@ -117,7 +117,35 @@ export function useVerification() {
     });
   }, [user]);
 
+  const unverifyUser = useCallback(async (userId: string) => {
+    if (!user) return;
+    await supabase.from('profiles').update({ is_verified: false }).eq('user_id', userId);
+
+    // Delete any existing verification request so they can re-apply
+    await supabase.from('verification_requests').delete().eq('user_id', userId);
+
+    await supabase.from('audit_logs').insert({
+      action: 'unverify_user',
+      admin_id: user.id,
+      target_id: userId,
+      target_type: 'user',
+      details: {},
+    });
+
+    fetchRequests();
+  }, [user, fetchRequests]);
+
   return {
+    myRequest,
+    allRequests,
+    pendingRequests: allRequests.filter(r => r.status === 'pending'),
+    loading,
+    applyForVerification,
+    approveVerification,
+    rejectVerification,
+    unverifyUser,
+    refetch: fetchRequests,
+  };
     myRequest,
     allRequests,
     pendingRequests: allRequests.filter(r => r.status === 'pending'),
