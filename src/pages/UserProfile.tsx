@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFollows } from '@/hooks/useFollows';
+import { useMessages } from '@/hooks/useMessages';
 import { usePosts, type PostWithDetails } from '@/hooks/usePosts';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ import {
   Calendar,
   UserPlus,
   UserMinus,
+  MessageSquare,
 } from 'lucide-react';
 
 function getInitials(name: string): string {
@@ -36,8 +38,10 @@ interface UserProfileData {
 
 export default function UserProfile() {
   const { userId } = useParams<{ userId: string }>();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { isFollowing, followUser, unfollowUser } = useFollows();
+  const { startConversation } = useMessages();
   const { posts, likePost, commentOnPost, deletePost } = usePosts();
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -114,15 +118,23 @@ export default function UserProfile() {
             </div>
 
             {!isOwnProfile && userId && (
-              isFollowing(userId) ? (
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => unfollowUser(userId)}>
-                  <UserMinus className="h-3.5 w-3.5" /> Unfollow
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={async () => {
+                  const convId = await startConversation(userId);
+                  if (convId) navigate('/messages');
+                }}>
+                  <MessageSquare className="h-3.5 w-3.5" /> Message
                 </Button>
-              ) : (
-                <Button size="sm" className="gap-1.5" onClick={() => followUser(userId)}>
-                  <UserPlus className="h-3.5 w-3.5" /> Follow
-                </Button>
-              )
+                {isFollowing(userId) ? (
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => unfollowUser(userId)}>
+                    <UserMinus className="h-3.5 w-3.5" /> Unfollow
+                  </Button>
+                ) : (
+                  <Button size="sm" className="gap-1.5" onClick={() => followUser(userId)}>
+                    <UserPlus className="h-3.5 w-3.5" /> Follow
+                  </Button>
+                )}
+              </div>
             )}
           </div>
 
