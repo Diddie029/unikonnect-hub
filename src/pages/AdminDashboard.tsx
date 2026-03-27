@@ -53,7 +53,7 @@ function getInitials(name: string): string {
 }
 
 export default function AdminDashboard() {
-  const { profiles, isAdmin, isAIEnabled, toggleAI, suspendUser, unsuspendUser, user } = useAuth();
+  const { profiles, isAdmin, isAIEnabled, toggleAI, suspendUser, unsuspendUser, user, refreshProfile } = useAuth();
   const { pendingConfessions, approveConfession, rejectConfession } = useConfessions();
   const { logs } = useAuditLogs();
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'moderation' | 'verification' | 'logs' | 'broadcast'>('overview');
