@@ -145,5 +145,6 @@ export function useVerification() {
     rejectVerification,
     unverifyUser,
     refetch: fetchRequests,
+  };
 }
 
