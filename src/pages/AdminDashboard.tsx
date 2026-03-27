@@ -27,6 +27,11 @@ import {
   Megaphone,
   ClipboardList,
   BadgeCheck,
+  Search,
+  ShieldX,
+  Database,
+  Wifi,
+  Server,
 } from 'lucide-react';
 import {
   BarChart,
@@ -36,6 +41,11 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts';
 
 function getInitials(name: string): string {
@@ -47,15 +57,30 @@ export default function AdminDashboard() {
   const { pendingConfessions, approveConfession, rejectConfession } = useConfessions();
   const { logs } = useAuditLogs();
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'moderation' | 'verification' | 'logs' | 'broadcast'>('overview');
-  const { pendingRequests, approveVerification, rejectVerification } = useVerification();
+  const { pendingRequests, allRequests, approveVerification, rejectVerification, unverifyUser } = useVerification();
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [broadcasting, setBroadcasting] = useState(false);
   const [postCount, setPostCount] = useState(0);
   const [rejectNotes, setRejectNotes] = useState<Record<string, string>>({});
+  const [userSearch, setUserSearch] = useState('');
+  const [verificationTab, setVerificationTab] = useState<'pending' | 'all'>('pending');
+
+  // Stats for graphs
+  const [messageCount, setMessageCount] = useState(0);
+  const [confessionCount, setConfessionCount] = useState(0);
+  const [storyCount, setStoryCount] = useState(0);
 
   useEffect(() => {
-    supabase.from('posts').select('id', { count: 'exact', head: true }).then(({ count }) => {
-      setPostCount(count || 0);
+    Promise.all([
+      supabase.from('posts').select('id', { count: 'exact', head: true }),
+      supabase.from('messages').select('id', { count: 'exact', head: true }),
+      supabase.from('confessions').select('id', { count: 'exact', head: true }),
+      supabase.from('stories').select('id', { count: 'exact', head: true }),
+    ]).then(([posts, msgs, confs, stories]) => {
+      setPostCount(posts.count || 0);
+      setMessageCount(msgs.count || 0);
+      setConfessionCount(confs.count || 0);
+      setStoryCount(stories.count || 0);
     });
   }, []);
 
@@ -74,6 +99,14 @@ export default function AdminDashboard() {
   const studentProfiles = profiles.filter(p => p.user_id !== user?.id);
   const onlineCount = profiles.filter(p => p.is_online).length;
   const suspendedCount = profiles.filter(p => p.is_suspended).length;
+  const verifiedCount = profiles.filter(p => p.is_verified).length;
+
+  const filteredStudents = studentProfiles.filter(p =>
+    p.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+    p.username.toLowerCase().includes(userSearch.toLowerCase()) ||
+    (p.course || '').toLowerCase().includes(userSearch.toLowerCase()) ||
+    (p.university || '').toLowerCase().includes(userSearch.toLowerCase())
+  );
 
   const stats = [
     { label: 'Total Users', value: studentProfiles.length, icon: Users, color: 'bg-primary/10 text-primary' },
@@ -81,6 +114,22 @@ export default function AdminDashboard() {
     { label: 'Total Posts', value: postCount, icon: FileText, color: 'bg-accent/10 text-accent' },
     { label: 'Suspended', value: suspendedCount, icon: Ban, color: 'bg-destructive/10 text-destructive' },
   ];
+
+  // Chart data
+  const contentData = [
+    { name: 'Posts', count: postCount },
+    { name: 'Messages', count: messageCount },
+    { name: 'Confessions', count: confessionCount },
+    { name: 'Stories', count: storyCount },
+  ];
+
+  const userStatusData = [
+    { name: 'Active', value: studentProfiles.length - suspendedCount },
+    { name: 'Suspended', value: suspendedCount },
+    { name: 'Verified', value: verifiedCount },
+  ];
+
+  const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', 'hsl(var(--accent))'];
 
   const tabs: { id: typeof activeTab; label: string; icon: any; badge?: number }[] = [
     { id: 'overview', label: 'Overview', icon: TrendingUp },
@@ -94,25 +143,23 @@ export default function AdminDashboard() {
   const handleBroadcast = async () => {
     if (!broadcastMessage.trim() || !user) return;
     setBroadcasting(true);
-
-    // Send notification to all users
     const notifications = profiles.map(p => ({
       user_id: p.user_id,
       title: 'Admin Broadcast',
       message: broadcastMessage.trim(),
       type: 'broadcast',
     }));
-
     await supabase.from('notifications').insert(notifications);
     await supabase.from('audit_logs').insert({
       action: 'broadcast_message',
       admin_id: user.id,
       details: { message: broadcastMessage.trim(), recipients: profiles.length },
     });
-
     setBroadcastMessage('');
     setBroadcasting(false);
   };
+
+  const displayedRequests = verificationTab === 'pending' ? pendingRequests : allRequests;
 
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
@@ -176,19 +223,100 @@ export default function AdminDashboard() {
 
       {/* Tab content */}
       {activeTab === 'overview' && (
-        <div className="rounded-xl bg-card shadow-card p-5">
-          <h2 className="text-sm font-semibold font-display text-card-foreground mb-2">Platform Overview</h2>
-          <p className="text-xs text-muted-foreground">Real-time data from the database. {profiles.length} registered users, {postCount} posts.</p>
-        </div>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+          {/* System Health */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="rounded-xl bg-card shadow-card p-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
+                <Server className="h-5 w-5 text-success" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Server Status</p>
+                <p className="text-sm font-semibold text-success">Operational</p>
+              </div>
+            </div>
+            <div className="rounded-xl bg-card shadow-card p-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
+                <Database className="h-5 w-5 text-success" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Database</p>
+                <p className="text-sm font-semibold text-success">Connected</p>
+              </div>
+            </div>
+            <div className="rounded-xl bg-card shadow-card p-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
+                <Wifi className="h-5 w-5 text-success" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Realtime</p>
+                <p className="text-sm font-semibold text-success">Active</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Content Distribution Chart */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="rounded-xl bg-card shadow-card p-5">
+              <h3 className="text-sm font-semibold font-display text-card-foreground mb-4">Content Distribution</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={contentData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <Tooltip
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: 'hsl(var(--card-foreground))' }}
+                  />
+                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="rounded-xl bg-card shadow-card p-5">
+              <h3 className="text-sm font-semibold font-display text-card-foreground mb-4">User Status Breakdown</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={userStatusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                  >
+                    {userStatusData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </motion.div>
       )}
 
       {activeTab === 'users' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl bg-card shadow-card overflow-hidden">
-          <div className="p-5 border-b border-border">
+          <div className="p-5 border-b border-border space-y-3">
             <h2 className="text-sm font-semibold font-display text-card-foreground">User Management</h2>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={userSearch}
+                onChange={e => setUserSearch(e.target.value)}
+                placeholder="Search by name, username, course, university..."
+                className="pl-9 h-9 text-xs"
+              />
+            </div>
           </div>
           <div className="divide-y divide-border">
-            {studentProfiles.map(profile => (
+            {filteredStudents.map(profile => (
               <div key={profile.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-muted/30 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className="relative">
@@ -201,12 +329,18 @@ export default function AdminDashboard() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-card-foreground">{profile.name}</span>
+                      <VerificationBadge isVerified={profile.is_verified} />
                       {profile.is_suspended && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Suspended</Badge>}
                     </div>
                     <p className="text-[11px] text-muted-foreground">@{profile.username} · {profile.university} · {profile.course}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {profile.is_verified && (
+                    <Button variant="outline" size="sm" className="gap-1.5 text-xs text-orange-600 border-orange-300 hover:bg-orange-50" onClick={() => unverifyUser(profile.user_id)}>
+                      <ShieldX className="h-3.5 w-3.5" /> Unverify
+                    </Button>
+                  )}
                   {profile.is_suspended ? (
                     <Button variant="outline" size="sm" className="gap-1.5 text-xs text-success border-success/30 hover:bg-success/10" onClick={() => unsuspendUser(profile.user_id)}>
                       <CheckCircle2 className="h-3.5 w-3.5" /> Reinstate
@@ -219,8 +353,10 @@ export default function AdminDashboard() {
                 </div>
               </div>
             ))}
-            {studentProfiles.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground py-8">No users yet</p>
+            {filteredStudents.length === 0 && (
+              <p className="text-center text-sm text-muted-foreground py-8">
+                {userSearch ? 'No users matching your search' : 'No users yet'}
+              </p>
             )}
           </div>
         </motion.div>
@@ -262,44 +398,65 @@ export default function AdminDashboard() {
       {activeTab === 'verification' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
           <div className="rounded-xl bg-card shadow-card p-5">
-            <h2 className="text-sm font-semibold font-display text-card-foreground mb-3 flex items-center gap-2">
-              <BadgeCheck className="h-4 w-4 text-primary" /> Verification Requests
-              {pendingRequests.length > 0 && (
-                <span className="bg-primary/10 text-primary text-[10px] font-semibold px-2 py-0.5 rounded-full">{pendingRequests.length} pending</span>
-              )}
-            </h2>
-            {pendingRequests.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No pending verification requests.</p>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold font-display text-card-foreground flex items-center gap-2">
+                <BadgeCheck className="h-4 w-4 text-primary" /> Verification Requests
+              </h2>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setVerificationTab('pending')}
+                  className={`text-xs px-3 py-1 rounded-full transition-colors ${verificationTab === 'pending' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+                >
+                  Pending ({pendingRequests.length})
+                </button>
+                <button
+                  onClick={() => setVerificationTab('all')}
+                  className={`text-xs px-3 py-1 rounded-full transition-colors ${verificationTab === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+                >
+                  All ({allRequests.length})
+                </button>
+              </div>
+            </div>
+            {displayedRequests.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No {verificationTab} verification requests.</p>
             ) : (
               <div className="space-y-4">
-                {pendingRequests.map(req => (
+                {displayedRequests.map(req => (
                   <div key={req.id} className="rounded-lg bg-muted/50 p-4">
                     <div className="flex items-center gap-3 mb-2">
                       <Avatar className="h-9 w-9">
                         {req.profile?.avatar_url ? <AvatarImage src={req.profile.avatar_url} /> : null}
                         <AvatarFallback className="bg-primary/10 text-primary text-xs">{req.profile ? getInitials(req.profile.name) : '?'}</AvatarFallback>
                       </Avatar>
-                      <div>
-                        <span className="text-sm font-medium text-card-foreground">{req.profile?.name}</span>
-                        <p className="text-[11px] text-muted-foreground">@{req.profile?.username} · KSH {req.amount_kshs.toLocaleString()}</p>
+                      <div className="flex-1">
+                        <span className="text-sm font-medium text-card-foreground">{req.profile?.name || 'Unknown'}</span>
+                        <p className="text-[11px] text-muted-foreground">@{req.profile?.username || '?'} · KSH {req.amount_kshs.toLocaleString()}</p>
                       </div>
+                      <Badge variant={req.status === 'approved' ? 'default' : req.status === 'rejected' ? 'destructive' : 'secondary'} className="text-[10px]">
+                        {req.status}
+                      </Badge>
                     </div>
                     <p className="text-xs text-card-foreground mb-1"><span className="font-medium">Reason:</span> {req.reason}</p>
                     <p className="text-[10px] text-muted-foreground mb-3">Payment ref: {req.payment_reference || 'N/A'} · {new Date(req.created_at).toLocaleString()}</p>
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" className="gap-1 text-xs text-success border-success/30" onClick={() => approveVerification(req.id, req.user_id)}>
-                        <CheckCircle2 className="h-3 w-3" /> Approve
-                      </Button>
-                      <Input
-                        value={rejectNotes[req.id] || ''}
-                        onChange={e => setRejectNotes(prev => ({ ...prev, [req.id]: e.target.value }))}
-                        placeholder="Rejection reason..."
-                        className="h-8 text-xs flex-1"
-                      />
-                      <Button size="sm" variant="outline" className="gap-1 text-xs text-destructive border-destructive/30" onClick={() => rejectVerification(req.id, req.user_id, rejectNotes[req.id] || 'Not approved')}>
-                        <XCircle className="h-3 w-3" /> Reject
-                      </Button>
-                    </div>
+                    {req.admin_notes && (
+                      <p className="text-[10px] text-muted-foreground mb-2 italic">Admin notes: {req.admin_notes}</p>
+                    )}
+                    {req.status === 'pending' && (
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" className="gap-1 text-xs text-success border-success/30" onClick={() => approveVerification(req.id, req.user_id)}>
+                          <CheckCircle2 className="h-3 w-3" /> Approve
+                        </Button>
+                        <Input
+                          value={rejectNotes[req.id] || ''}
+                          onChange={e => setRejectNotes(prev => ({ ...prev, [req.id]: e.target.value }))}
+                          placeholder="Rejection reason..."
+                          className="h-8 text-xs flex-1"
+                        />
+                        <Button size="sm" variant="outline" className="gap-1 text-xs text-destructive border-destructive/30" onClick={() => rejectVerification(req.id, req.user_id, rejectNotes[req.id] || 'Not approved')}>
+                          <XCircle className="h-3 w-3" /> Reject
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
