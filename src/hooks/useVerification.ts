@@ -145,14 +145,5 @@ export function useVerification() {
     rejectVerification,
     unverifyUser,
     refetch: fetchRequests,
-  };
-    myRequest,
-    allRequests,
-    pendingRequests: allRequests.filter(r => r.status === 'pending'),
-    loading,
-    applyForVerification,
-    approveVerification,
-    rejectVerification,
-    refetch: fetchRequests,
-  };
 }
+
