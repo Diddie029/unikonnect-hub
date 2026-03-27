@@ -337,7 +337,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   {profile.is_verified && (
-                    <Button variant="outline" size="sm" className="gap-1.5 text-xs text-orange-600 border-orange-300 hover:bg-orange-50" onClick={() => unverifyUser(profile.user_id)}>
+                    <Button variant="outline" size="sm" className="gap-1.5 text-xs text-destructive border-destructive/30 hover:bg-destructive/10" onClick={async () => { await unverifyUser(profile.user_id); await refreshProfile(); }}>
                       <ShieldX className="h-3.5 w-3.5" /> Unverify
                     </Button>
                   )}
