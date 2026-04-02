@@ -1,4 +1,4 @@
-# 🎓 UniConnect Hub
+# 🎓 UniKonnect Hub
 
 UniKonnect Hub is a **real-time university social and study platform** designed to connect students through academic discussions, daily status updates, and media sharing — all managed with **live admin moderation**.
 
