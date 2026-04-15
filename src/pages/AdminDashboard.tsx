@@ -4,6 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useConfessions } from '@/hooks/useConfessions';
 import { useAuditLogs } from '@/hooks/useAuditLogs';
 import { useVerification } from '@/hooks/useVerification';
+import { useReports } from '@/hooks/useReports';
+import { useSystemAlerts } from '@/hooks/useSystemAlerts';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -13,59 +15,37 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import VerificationBadge from '@/components/profile/VerificationBadge';
+import AdminOverview from '@/components/admin/AdminOverview';
+import AdminSecurity from '@/components/admin/AdminSecurity';
+import AdminReports from '@/components/admin/AdminReports';
+import AdminAnalytics from '@/components/admin/AdminAnalytics';
+import AdminAuditLogs from '@/components/admin/AdminAuditLogs';
 import {
-  Users,
-  FileText,
-  Activity,
-  Shield,
-  Ban,
-  CheckCircle2,
-  XCircle,
-  TrendingUp,
-  Bot,
-  Flame,
-  Megaphone,
-  ClipboardList,
-  BadgeCheck,
-  Search,
-  ShieldX,
-  Database,
-  Wifi,
-  Server,
+  Users, FileText, Activity, Shield, Ban, CheckCircle2, XCircle,
+  TrendingUp, Bot, Flame, Megaphone, ClipboardList, BadgeCheck,
+  Search, ShieldX, BarChart3, Flag, AlertTriangle,
 } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-} from 'recharts';
 
 function getInitials(name: string): string {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
+type TabId = 'overview' | 'users' | 'moderation' | 'verification' | 'reports' | 'security' | 'analytics' | 'logs' | 'broadcast';
+
 export default function AdminDashboard() {
   const { profiles, isAdmin, isAIEnabled, toggleAI, suspendUser, unsuspendUser, user, refreshProfile } = useAuth();
   const { pendingConfessions, approveConfession, rejectConfession } = useConfessions();
   const { logs } = useAuditLogs();
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'moderation' | 'verification' | 'logs' | 'broadcast'>('overview');
   const { pendingRequests, allRequests, approveVerification, rejectVerification, unverifyUser } = useVerification();
+  const { reports, openReports, updateReport } = useReports();
+  const { alerts, activeAlerts, createAlert, resolveAlert } = useSystemAlerts();
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [broadcasting, setBroadcasting] = useState(false);
   const [postCount, setPostCount] = useState(0);
   const [rejectNotes, setRejectNotes] = useState<Record<string, string>>({});
   const [userSearch, setUserSearch] = useState('');
   const [verificationTab, setVerificationTab] = useState<'pending' | 'all'>('pending');
-
-  // Stats for graphs
   const [messageCount, setMessageCount] = useState(0);
   const [confessionCount, setConfessionCount] = useState(0);
   const [storyCount, setStoryCount] = useState(0);
@@ -115,7 +95,6 @@ export default function AdminDashboard() {
     { label: 'Suspended', value: suspendedCount, icon: Ban, color: 'bg-destructive/10 text-destructive' },
   ];
 
-  // Chart data
   const contentData = [
     { name: 'Posts', count: postCount },
     { name: 'Messages', count: messageCount },
@@ -129,13 +108,23 @@ export default function AdminDashboard() {
     { name: 'Verified', value: verifiedCount },
   ];
 
-  const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', 'hsl(var(--accent))'];
+  // Mock growth data (in production, this would come from analytics)
+  const growthData = [
+    { name: 'Week 1', users: Math.max(1, Math.round(studentProfiles.length * 0.3)), posts: Math.round(postCount * 0.2) },
+    { name: 'Week 2', users: Math.max(2, Math.round(studentProfiles.length * 0.5)), posts: Math.round(postCount * 0.4) },
+    { name: 'Week 3', users: Math.max(3, Math.round(studentProfiles.length * 0.7)), posts: Math.round(postCount * 0.6) },
+    { name: 'Week 4', users: Math.max(4, Math.round(studentProfiles.length * 0.85)), posts: Math.round(postCount * 0.8) },
+    { name: 'Now', users: studentProfiles.length, posts: postCount },
+  ];
 
-  const tabs: { id: typeof activeTab; label: string; icon: any; badge?: number }[] = [
+  const tabs: { id: TabId; label: string; icon: any; badge?: number }[] = [
     { id: 'overview', label: 'Overview', icon: TrendingUp },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'moderation', label: 'Moderation', icon: Flame, badge: pendingConfessions.length },
     { id: 'verification', label: 'Verification', icon: BadgeCheck, badge: pendingRequests.length },
+    { id: 'reports', label: 'Reports', icon: Flag, badge: openReports.length },
+    { id: 'security', label: 'Security', icon: Shield, badge: activeAlerts.length },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'logs', label: 'Audit Logs', icon: ClipboardList },
     { id: 'broadcast', label: 'Broadcast', icon: Megaphone },
   ];
@@ -165,7 +154,7 @@ export default function AdminDashboard() {
     <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold font-display text-foreground">Admin Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Monitor and manage UniConnect</p>
+        <p className="text-sm text-muted-foreground mt-1">Enterprise administration panel — UniKonnect</p>
       </div>
 
       {/* AI Control */}
@@ -221,84 +210,17 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Tab content */}
+      {/* Tab Content */}
       {activeTab === 'overview' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-          {/* System Health */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-xl bg-card shadow-card p-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-                <Server className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Server Status</p>
-                <p className="text-sm font-semibold text-success">Operational</p>
-              </div>
-            </div>
-            <div className="rounded-xl bg-card shadow-card p-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-                <Database className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Database</p>
-                <p className="text-sm font-semibold text-success">Connected</p>
-              </div>
-            </div>
-            <div className="rounded-xl bg-card shadow-card p-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-                <Wifi className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Realtime</p>
-                <p className="text-sm font-semibold text-success">Active</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Content Distribution Chart */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="rounded-xl bg-card shadow-card p-5">
-              <h3 className="text-sm font-semibold font-display text-card-foreground mb-4">Content Distribution</h3>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={contentData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-                  <Tooltip
-                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                    labelStyle={{ color: 'hsl(var(--card-foreground))' }}
-                  />
-                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="rounded-xl bg-card shadow-card p-5">
-              <h3 className="text-sm font-semibold font-display text-card-foreground mb-4">User Status Breakdown</h3>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={userStatusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                    label={({ name, value }) => `${name}: ${value}`}
-                  >
-                    {userStatusData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </motion.div>
+        <AdminOverview
+          contentData={contentData}
+          userStatusData={userStatusData}
+          activeAlertCount={activeAlerts.length}
+          openReportCount={openReports.length}
+          totalUsers={studentProfiles.length}
+          onlineCount={onlineCount}
+          growthData={growthData}
+        />
       )}
 
       {activeTab === 'users' && (
@@ -307,15 +229,10 @@ export default function AdminDashboard() {
             <h2 className="text-sm font-semibold font-display text-card-foreground">User Management</h2>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                value={userSearch}
-                onChange={e => setUserSearch(e.target.value)}
-                placeholder="Search by name, username, course, university..."
-                className="pl-9 h-9 text-xs"
-              />
+              <Input value={userSearch} onChange={e => setUserSearch(e.target.value)} placeholder="Search by name, username, course, university..." className="pl-9 h-9 text-xs" />
             </div>
           </div>
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-border max-h-[500px] overflow-y-auto">
             {filteredStudents.map(profile => (
               <div key={profile.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-muted/30 transition-colors">
                 <div className="flex items-center gap-3">
@@ -403,16 +320,12 @@ export default function AdminDashboard() {
                 <BadgeCheck className="h-4 w-4 text-primary" /> Verification Requests
               </h2>
               <div className="flex gap-1">
-                <button
-                  onClick={() => setVerificationTab('pending')}
-                  className={`text-xs px-3 py-1 rounded-full transition-colors ${verificationTab === 'pending' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
-                >
+                <button onClick={() => setVerificationTab('pending')}
+                  className={`text-xs px-3 py-1 rounded-full transition-colors ${verificationTab === 'pending' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                   Pending ({pendingRequests.length})
                 </button>
-                <button
-                  onClick={() => setVerificationTab('all')}
-                  className={`text-xs px-3 py-1 rounded-full transition-colors ${verificationTab === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
-                >
+                <button onClick={() => setVerificationTab('all')}
+                  className={`text-xs px-3 py-1 rounded-full transition-colors ${verificationTab === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                   All ({allRequests.length})
                 </button>
               </div>
@@ -438,20 +351,13 @@ export default function AdminDashboard() {
                     </div>
                     <p className="text-xs text-card-foreground mb-1"><span className="font-medium">Reason:</span> {req.reason}</p>
                     <p className="text-[10px] text-muted-foreground mb-3">Payment ref: {req.payment_reference || 'N/A'} · {new Date(req.created_at).toLocaleString()}</p>
-                    {req.admin_notes && (
-                      <p className="text-[10px] text-muted-foreground mb-2 italic">Admin notes: {req.admin_notes}</p>
-                    )}
+                    {req.admin_notes && <p className="text-[10px] text-muted-foreground mb-2 italic">Admin notes: {req.admin_notes}</p>}
                     {req.status === 'pending' && (
                       <div className="flex items-center gap-2">
                         <Button size="sm" variant="outline" className="gap-1 text-xs text-success border-success/30" onClick={() => approveVerification(req.id, req.user_id)}>
                           <CheckCircle2 className="h-3 w-3" /> Approve
                         </Button>
-                        <Input
-                          value={rejectNotes[req.id] || ''}
-                          onChange={e => setRejectNotes(prev => ({ ...prev, [req.id]: e.target.value }))}
-                          placeholder="Rejection reason..."
-                          className="h-8 text-xs flex-1"
-                        />
+                        <Input value={rejectNotes[req.id] || ''} onChange={e => setRejectNotes(prev => ({ ...prev, [req.id]: e.target.value }))} placeholder="Rejection reason..." className="h-8 text-xs flex-1" />
                         <Button size="sm" variant="outline" className="gap-1 text-xs text-destructive border-destructive/30" onClick={() => rejectVerification(req.id, req.user_id, rejectNotes[req.id] || 'Not approved')}>
                           <XCircle className="h-3 w-3" /> Reject
                         </Button>
@@ -465,28 +371,33 @@ export default function AdminDashboard() {
         </motion.div>
       )}
 
+      {activeTab === 'reports' && (
+        <AdminReports reports={reports} openReports={openReports} updateReport={updateReport} />
+      )}
+
+      {activeTab === 'security' && (
+        <AdminSecurity
+          alerts={alerts}
+          activeAlerts={activeAlerts}
+          createAlert={createAlert}
+          resolveAlert={resolveAlert}
+          profiles={profiles}
+          recentLogins={[]}
+        />
+      )}
+
+      {activeTab === 'analytics' && (
+        <AdminAnalytics
+          profiles={profiles}
+          postCount={postCount}
+          messageCount={messageCount}
+          confessionCount={confessionCount}
+          storyCount={storyCount}
+        />
+      )}
+
       {activeTab === 'logs' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl bg-card shadow-card p-5">
-          <h2 className="text-sm font-semibold font-display text-card-foreground mb-4">Audit Logs</h2>
-          {logs.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No audit logs yet. Actions will appear here.</p>
-          ) : (
-            <div className="space-y-3">
-              {logs.map(log => (
-                <div key={log.id} className="flex gap-3 items-start">
-                  <div className="mt-1.5 h-2 w-2 rounded-full bg-primary shrink-0" />
-                  <div>
-                    <p className="text-xs font-medium text-card-foreground">{log.action.replace(/_/g, ' ')}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {log.target_type && `${log.target_type} · `}
-                      {new Date(log.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </motion.div>
+        <AdminAuditLogs logs={logs} profiles={profiles} />
       )}
 
       {activeTab === 'broadcast' && (
@@ -497,13 +408,7 @@ export default function AdminDashboard() {
           <p className="text-xs text-muted-foreground mb-3">
             Send a notification to all {profiles.length} users on the platform.
           </p>
-          <Textarea
-            value={broadcastMessage}
-            onChange={e => setBroadcastMessage(e.target.value)}
-            placeholder="Type your broadcast message..."
-            className="resize-none mb-3"
-            rows={3}
-          />
+          <Textarea value={broadcastMessage} onChange={e => setBroadcastMessage(e.target.value)} placeholder="Type your broadcast message..." className="resize-none mb-3" rows={3} />
           <Button onClick={handleBroadcast} disabled={!broadcastMessage.trim() || broadcasting} className="gap-1.5">
             <Megaphone className="h-3.5 w-3.5" />
             {broadcasting ? 'Sending...' : 'Send Broadcast'}
